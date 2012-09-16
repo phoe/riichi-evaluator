@@ -33,9 +33,9 @@
 	(#\N :north)))
 
 (defparameter *dragon-table*
-  '((#\C :red)
-	(#\B :white)
-	(#\F :green)))
+  '((#\C :chuu)
+	(#\B :haku)
+	(#\F :hatsu)))
 
 (defparameter *honor-table*
   (append *wind-table* *dragon-table*))
@@ -86,9 +86,9 @@
 
 (defgeneric of-wind (wind tile))
 
-(defgeneric tile-equal (tile tile))
+(defgeneric tile-equal (tile1 tile2))
 
-(defgeneric tile-less (tile tile))
+(defgeneric tile-less (tile1 tile2))
 
 (defgeneric tile-consec (tile &rest rest))
 
@@ -291,7 +291,7 @@
 										 :closed closed)))))))
 
 
-(defparameter *matchers* (list))
+(defparameter *pattern-matchers* (list))
 
 
 (defun match-and-consume (matcher tiles)
@@ -319,7 +319,7 @@
 
 (defun sub-paths (tiles)
   (when tiles
-	(loop for m in *matchers*
+	(loop for m in *pattern-matchers*
 		  if (match-recursive m tiles)
 		  nconc it)))
 
@@ -366,9 +366,6 @@
 			  (count-sets (open-closed &rest types) (count-if (lambda-p open-closed types) ,ord-name))
 			  (of-good-wind-p (tile) (or (of-wind prevailing-wind tile) (of-wind seat-wind tile))))
 	   ,@forms)))
-
-
-(defparameter *yakus* (list))
 
 
 (defun count-fu-melds (sets)
@@ -425,16 +422,90 @@
   (append locked-sets path))
 
 
+
+(defmacro yakulist-han (yakulist)
+  `(first ,yakulist))
+
+(defmacro yakulist-yakus (yakulist)
+  `(rest ,yakulist))
+
+
+(defun either (a b target)
+  (or (equal a target) (equal b target)))
+
+(defun combine-han (a b)
+  (cond
+	((either a b :double-yakuman) :double-yakuman)
+	((either a b :yakuman) :yakuman)
+	(t (+ a b))))
+
+(defun combine-yakulists (&optional a b)
+  (if (not a)
+	(list 0)
+	(let ((new-han (combine-han (yakulist-han a) (yakulist-han b)))
+		  (new-yakus (nconc (yakulist-yakus a) (yakulist-yakus b))))
+	  (cons new-han new-yakus))))
+
+
+(defmacro scoring-han (scoring)
+  `(first ,scoring))
+
+(defmacro scoring-fu (scoring)
+  `(second ,scoring))
+
+(defmacro scoring-yakus (scoring)
+  `(cddr ,scoring))
+
+(defun higher-scoring (&optional a b)
+  (if (and a b)
+	(let ((han-a (scoring-han a))
+		  (han-b (scoring-han b)))
+	  (cond 
+		((equal han-a :double-yakuman) a)
+		((equal han-b :double-yakuman) b)
+		((equal han-a :yakuman) a)
+		((equal han-b :yakuman) b)
+		((> han-a han-b) a)
+		((< han-a han-b) b)
+		((> (scoring-fu b) (scoring-fu a)) b)
+		(t a)))
+	(list 0 0)))
+
+
+
+(defparameter *yaku-matchers* (list))
+(defparameter *yaku-list* (list))
+
+
+(defun limit (han fu)
+  (case han
+	(:double-yakuman :double-yakuman)
+	(:yakuman :yakuman)
+	(13 :kazoe-yakuman)
+	((11 12) :sanbaiman)
+	((8 9 10) :baiman)
+	((6 7) :haneman)
+	(5 :mangan)
+	(4 (when (>= fu 40) :kazoe-mangan))
+	(3 (when (>= fu 70) :kazoe-mangan))))
+
+
+(defun list-yakus ()
+  (loop for (name han-closed han-open) in (reverse *yaku-list*)
+		do (format t "~(~a~): ~(~a~) closed~[~:;, ~(~a~) open~]~%"
+				   name han-closed (if (equal 0 han-open) 0 1) han-open)))
+
+
 (defun eval-ordering (hand ord)
-  (format t "~a~%" ord)
+  ;(format t "~a~%" ord)
   (multiple-value-bind (fu base-fu) (count-fu hand ord)
-	(format t "Base-fu: ~a, Fu: ~a~%" base-fu fu)
-	(let* ((all-yakus (loop for yaku-p in *yakus*
+	;(format t "Base-fu: ~a, Fu: ~a~%" base-fu fu)
+	(let* ((all-yakus (loop for yaku-p in *yaku-matchers*
 							if (funcall yaku-p hand ord base-fu)
 							nconc it))
-		   );(yakumans (remove-if-not #'yakuman-p all-yakus)))
-	  ;(if yakumans yakumans all-yakus))))
-	  all-yakus)))
+		   (combined (reduce #'combine-yakulists all-yakus)))
+	  (list* (first combined) fu (rest combined)))))
+
 
 
 (defun ordering-ready-p (hand ord)
@@ -478,24 +549,27 @@
 		  if (ordering-ready-p hand full-ord)
 		  nconc
 		  ; If there are multiple free tiles equal to the winning tile
-		  ; all of them should be considered in turn.
+		  ; all of them should be considered as the winning tile in turn.
 		  (loop for (alt-hand alt-ord) in (consider-winning-tile
 											hand qualified-partial-ord full-ord)
 				collect (eval-ordering alt-hand alt-ord)))))
 
 
+(defun add-yaku-to-list (name han-closed han-open)
+  (push (list name han-closed han-open) *yaku-list*))
+
+
 (defmacro define-yaku (name han-closed han-open &rest forms)
-  `(push
-	 (lambda (hand ord base-fu)
-	   (with-hand-helpers hand ord
-						  (when (progn ,@forms)
-							(let ((han (if closed ,han-closed ,han-open)))
-							  (cond ((= 13 han)
-									 (list (list han ',name :yakuman)))
-									((> han 0)
-									 (list (list han ',name)))
-									(t nil))))))
-	 *yakus*))
+  `(progn
+	 (push
+	   (lambda (hand ord base-fu)
+		 (with-hand-helpers hand ord
+							(when (progn ,@forms)
+							  (let ((han (if closed ,han-closed ,han-open)))
+								(unless (equal han 0)
+								  (list (list han ',name)))))))
+	   *yaku-matchers*)
+	 (add-yaku-to-list ',name ,han-closed ,han-open)))
 
 
 (defmacro define-multi-yaku (&rest forms)
@@ -503,11 +577,14 @@
 	 (lambda (hand ord base-fu)
 	   (remove nil (with-hand-helpers hand ord
 									  ,@forms)))
-	 *yakus*))
+	 *yaku-matchers*))
 
 
 (defun yakuman-p (yaku)
   (find :yakuman yaku))
+
+(defun double-yakuman-p (yaku)
+  (find :double-yakuman yaku))
 
 
 ; A pattern-matcher returns two values:
@@ -517,7 +594,7 @@
   `(push (lambda (tiles)
 		   (when (>= (length tiles) ,min-length)
 			 ,@forms))
-		 *matchers*))
+		 *pattern-matchers*))
 
 
 (defun count-consec-sames (tiles)
@@ -672,7 +749,7 @@
   (and (equal :bamboo (suit tile))
 	   (find (rank tile) '(2 3 4 6 8))))
 (defmethod green-p ((tile honor-tile))
-  (equal :green (kind tile)))
+  (equal :hatsu (kind tile)))
 
 (defun all-of-same-suit (tiles)
   (let ((first-suited (find-if #'suited-p tiles)))
@@ -699,17 +776,21 @@
 (define-yaku ittsuu 2 1
 			 (sets :all 'ittsuu))
 
-(define-multi-yaku ; fanpai
+; fanpai
+(loop for type in (list* :prevailing-wind :seat-wind (mapcar #'second *dragon-table*))
+	  for yaku-name = (format nil "FANPAI-~a" type)
+	  do (add-yaku-to-list (intern yaku-name) 1 1))
+
+(define-multi-yaku
   (loop for set in (sets :all 'pon 'kan)
 		for tile = (set-first set)
 		for kind = (when (honor-p tile) (kind tile))
 		for wind = (when (wind-p tile) kind)
-		for (seat-wind-p prevailing-wind-p) = (if wind (list (equal wind seat-wind)
-															 (equal wind prevailing-wind))
-												(list nil nil))
-		if (dragon-p tile) collect (list 1 'fanpai :type :dragon :kind kind)
-		if seat-wind-p collect (list 1 'fanpai :type :wind :reason :seat :kind kind)
-		if prevailing-wind-p collect (list 1 'fanpai :type wind :reason :prevailing :kind kind)))
+		for type = (cond
+					 ((dragon-p tile) kind)
+					 ((and wind (equal wind prevailing-wind)) 'prevailing-wind)
+					 ((and wind (equal wind seat-wind)) 'seat-wind))
+		if type collect (list 1 (intern (format nil "FANPAI-~a" type)))))
 
 (define-yaku chanta 2 1
 			 (and (any #'terminal-p tiles)
@@ -756,39 +837,39 @@
 (define-yaku chinitsu 6 5
 			 (all-of-same-suit tiles))
 
-(define-yaku kokushi-musou 13 0
+(define-yaku kokushi-musou :yakuman 0
 			 (and (not (any #'simple-p tiles))
 				  (= 1 (count-sets :all 'twelve-singles))
 				  (= 1 (count-sets :all 'pair))))
 
-(define-yaku suu-ankou 13 0
+(define-yaku suu-ankou :yakuman :yakuman
 			 (= 4 (count-sets :closed 'pon 'kan)))
 
-(define-yaku daisangen 13 13
+(define-yaku daisangen :yakuman :yakuman
 			 (all-kinds-of-type #'dragon-p 3 (sets :all 'pon 'kan)))
 
-(define-yaku shousuushii 13 13
+(define-yaku shousuushii :yakuman :yakuman
 			 (all-kinds-of-type #'wind-p 4 (sets :all 'pair 'pon 'kan)))
 
-(define-yaku daisuushii 13 13
+(define-yaku daisuushii :double-yakuman :double-yakuman
 			 (all-kinds-of-type #'wind-p 4 (sets :all 'pon 'kan)))
 
-(define-yaku tsuuiisou 13 13
+(define-yaku tsuuiisou :yakuman :yakuman
 			 (all #'honor-p tiles))
 
-(define-yaku chinroutou 13 13
+(define-yaku chinroutou :yakuman :yakuman
 			 (all #'terminal-p tiles))
 
-(define-yaku ryuuiisou 13 13
+(define-yaku ryuuiisou :yakuman :yakuman
 			 (all #'green-p tiles))
 
-(define-yaku chuuren-poutou 13 0
+(define-yaku chuuren-poutou :yakuman 0
 			 (and (all-of-same-suit tiles)
 				  (let ((ranks (mapcar #'rank tiles)))
 					(and (= 3 (count 1 ranks))
 						 (= 3 (count 9 ranks))))))
 
-(define-yaku suu-kantsu 13 13
+(define-yaku suu-kantsu :yakuman :yakuman
 			 (= 4 (count-sets :all 'kan)))
 
 
@@ -802,7 +883,8 @@
 ;(print *paths*)
 
 (defparameter *test-hands*
-  '((east east ron M3 M3 P1 P1 P5 P5 S1 S1 S8 E E C C S8)				; chiitoitsu
+  '((east east ron M1 M2 M3 P2 P3 P4 S3 S4 S5 (open M6 M7 M8) P7 P7)	; nothing
+	(east east ron M3 M3 P1 P1 P5 P5 S1 S1 S8 E E C C S8)				; chiitoitsu
 	(east east tsumo M1 M2 M3 M5 M5 P3 P4 P7 P8 P9 S4 S5 S6 P2)			; pinfu
 	(east east tsumo M2 M4 P5 P5 P6 P6 P7 P7 S9 S9 S9 F F M3)			; iipeikou
 	(east east tsumo M2 M3 M4 P1 P1 P1 P2 P3 P4 S2 S3 S4 S S)			; sanshoku doujun
@@ -858,14 +940,37 @@
 		  (open S1 S1 S1 S1) (closed S2 S2 S2 S2) M5 M5)
 	))
 
-(loop for raw-hand in (subseq *test-hands* 0)
-	  for hand = (parse-hand raw-hand)
-	  do (format t "~a~%" raw-hand)
-	  do (format t "~a~%~%" (eval-all-orderings hand))
-	  ;do (format t "~a~%" (sub-paths hand))
-	  ;do (format t "~a~%" hand)
-	  ;do (format t "~{~:a ~}~%~%" (eval-all-orderings hand))
-	  )
+;(list-yakus)
+
+(defun format-scoring (scoring)
+  (let* ((han (scoring-han scoring))
+		 (fu (scoring-fu scoring))
+		 (limit (limit han fu))
+		 (score (if limit limit (format nil "~d han ~d fu" han fu))))
+	(if (equal han 0)
+	  "Nothing."
+	  (format nil "~:(~a~): ~{~(~a~) ~}" score (scoring-yakus scoring)))))
+
+(defun score (hand)
+  (let ((scorings (eval-all-orderings hand)))
+	(reduce #'higher-scoring scorings)))
+
+(defun main ()
+  (handler-case
+	(loop for line = (progn (format t "hand> " ) read-line)
+		  for raw-hand = (with-input-from-string (in line) (read in))
+		  for hand = (parse-hand raw-hand)
+		  do (format t "~a~%" (format-scoring (score hand))))
+	(condition () (format t "Error."))))
+
+;(loop for raw-hand in (subseq *test-hands* 0)
+;	  for hand = (parse-hand raw-hand)
+;	  ;do (format t "~a~%" raw-hand)
+;	  do (format t "~a~%" (format-scoring (score hand)))
+;do (format t "~a~%" (sub-paths hand))
+;do (format t "~a~%" hand)
+;do (format t "~{~:a ~}~%~%" (eval-all-orderings hand))
+;)
 
 ;(print (eval-all-orderings *hand*))
 
