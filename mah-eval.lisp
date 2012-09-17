@@ -90,7 +90,7 @@
 
 (defgeneric tile-less (tile1 tile2))
 
-(defgeneric tile-consec (tile &rest rest))
+(defgeneric tile-consec (tile1 tile2 &key wrap-around))
 
 
 (defmethod tile-p ((anything t))
@@ -129,7 +129,7 @@
 (defmethod tile-equal ((a tile) (b tile))
   nil)
 
-(defmethod tile-consec ((tile tile) &rest rest)
+(defmethod tile-consec ((tile1 tile) (tile2 tile) &key wrap-around)
   nil)
 
 
@@ -139,11 +139,11 @@
    (rank :initarg :rank
 		 :reader rank)))
 
-(defmethod print-object ((tile suited-tile) stream)
-  (when *print-readably* (error 'print-not-readable :object tile))
-  (format stream "#<~C~d>"
-		  (table-a-with-b *suit-table* (suit tile))
-		  (rank tile)))
+;(defmethod print-object ((tile suited-tile) stream)
+;  (when *print-readably* (error 'print-not-readable :object tile))
+; (format stream "#<~C~d>"
+;		  (table-a-with-b *suit-table* (suit tile))
+;		  (rank tile)))
 
 (defmethod suited-p ((tile suited-tile))
   t)
@@ -173,14 +173,11 @@
 		  ((= pos-a pos-b) (< (rank a) (rank b)))
 		  (t               nil))))
 
-(defmethod tile-consec ((tile suited-tile) &rest rest)
-  ;(format t "Called: ~a ~a~%" tile rest)
-  (case (length rest)
-	(0 t)
-	(1 (and (of-suit (suit tile) (first rest))
-			(of-rank (1+ (rank tile)) (first rest))))
-	(otherwise (and (tile-consec tile (first rest))
-					(apply #'tile-consec (first rest) (rest rest))))))
+(defmethod tile-consec ((t1 suited-tile) (t2 suited-tile) &key wrap-around)
+  (and (of-suit (suit t1) t2)
+	   (let* ((rank (rank t1))
+			  (next-rank (if (and wrap-around (= 9 rank)) 1 (1+ rank))))
+		 (of-rank next-rank t2))))
 
 
 (defclass honor-tile (tile)
@@ -212,6 +209,32 @@
 		(pos-b (position-b (kind b) *honor-table*)))
 	(< pos-a pos-b)))
 
+(define-condition item-not-in-table (condition) ((item :initarg item)))
+
+(defun next-with-rollover (item table)
+  (let ((pos (position item table)))
+	(if pos
+	  (elt table (mod (1+ pos) (length table)))
+	  (signal 'item-not-in-table :item item))))
+
+
+
+;(and (equal 'b (next-with-rollover 0 '(a b c d)))
+;	 (equal 'd (next-with-rollover 2 '(a b c d)))
+;	 (equal 'a (next-with-rollover 3 '(a b c d))))
+
+
+(defmethod tile-consec ((t1 honor-tile) (t2 honor-tile) &key wrap-around)
+  (when wrap-around
+	(handler-case
+	  (let* ((table (cond ((wind-p t1) (mapcar #'second *wind-table*))
+						  ((dragon-p t1) (mapcar #'second *dragon-table*))
+						  (t (error 'invalid-kind-of-tile))))
+			 (succ (next-with-rollover (kind t1) table)))
+		(equal succ (kind t2)))
+	  (item-not-in-table nil))))
+
+
 
 (defmethod tile-less ((a suited-tile) (b honor-tile)) t)
 (defmethod tile-less ((a honor-tile) (b suited-tile)) nil)
@@ -225,7 +248,10 @@
   tiles
   locked-sets
   free-tiles
-  closed)
+  closed
+  riichi
+  doras
+  ura-doras)
 
 
 (define-condition parse-tile-error (error)
@@ -263,17 +289,26 @@
 	(append (list open-or-closed type) tiles)))
 
 
+(define-condition invalid-hand (condition)
+  ((reason :initarg :reason
+		   :initform "No reason given."
+		   :reader reason)))
+
 (defun parse-hand (seq)
   (flet ((parse-wind (symbol) (ccase symbol
 									 ('east :east)
 									 ('south :south)
 									 ('west :west)
 									 ('north :north))))
-	(let ((prevailing-wind (parse-wind (pop seq)))
-		  (seat-wind (parse-wind (pop seq)))
-		  (self-draw (ecase (pop seq)
-					   ('tsumo t)
-					   ('ron nil))))
+	(let* ((prevailing-wind (parse-wind (pop seq)))
+		   (seat-wind (parse-wind (pop seq)))
+		   (doras (mapcar #'parse-tile (pop seq)))
+		   (riichi (listp (first seq)))
+		   (ura-doras (when riichi (mapcar #'parse-tile (pop seq))))
+		   (self-draw (ecase (pop seq)
+						('tsumo t)
+						('ron nil)))
+		   )
 	  (loop for item in seq
 			if (listp item) collect (parse-set item) into locked-sets
 			if (symbolp item) collect (parse-tile item) into free-tiles
@@ -281,14 +316,21 @@
 						   (winning-tile (car (last free-tiles)))
 						   (tiles (append free-tiles tiles-in-locked-sets))
 						   (closed (all #'set-closed-p locked-sets)))
-					  (return (make-hand :prevailing-wind prevailing-wind
-										 :seat-wind seat-wind
-										 :self-draw self-draw
-										 :winning-tile winning-tile
-										 :tiles (sort tiles #'tile-less)
-										 :locked-sets locked-sets
-										 :free-tiles (sort free-tiles #'tile-less)
-										 :closed closed)))))))
+					  (when (and riichi (not closed))
+						(signal 'invalid-hand :reason "Riichi with open hand"))
+					  (return
+						(make-hand :prevailing-wind prevailing-wind
+								   :seat-wind seat-wind
+								   :self-draw self-draw
+								   :winning-tile winning-tile
+								   :tiles (sort tiles #'tile-less)
+								   :locked-sets locked-sets
+								   :free-tiles (sort free-tiles #'tile-less)
+								   :closed closed
+								   :riichi riichi
+								   :doras doras
+								   :ura-doras ura-doras
+								   )))))))
 
 
 (defparameter *pattern-matchers* (list))
@@ -355,10 +397,9 @@
 		  (seat-wind (hand-seat-wind ,hand-name))
 		  (self-draw (hand-self-draw ,hand-name))
 		  (winning-tile (hand-winning-tile ,hand-name))
-		  (winning-set (find (lambda (set) (find winning-tile (set-tiles set))) ,ord-name))
+		  (winning-set (find-if (lambda (set) (find winning-tile (set-tiles set))) ,ord-name))
 		  (tiles (hand-tiles ,hand-name))
 		  (closed (hand-closed ,hand-name)))
-
 	 (labels ((lambda-p (open-closed types)
 						(lambda (set) (and (set-open-closed-p open-closed set)
 										   (find (set-type set) types))))
@@ -396,22 +437,21 @@
 
 (defun count-fu (hand ord)
   (with-hand-helpers hand ord
-					 (let* ((pairs (sets :all 'pair))
-							(seven-pairs (= 7 (length pairs)))
-							(for-melds (count-fu-melds (sets :all 'pon 'kan)))
-							(for-pairs (count-fu-pairs pairs #'of-good-wind-p))
-							(for-waits (count-fu-waits winning-set winning-tile))
-							(for-all-of-above (+ for-melds for-pairs for-waits))
-							(pinfu-p (and (zerop for-all-of-above) (not seven-pairs)))
-							(for-self-draw (if (and self-draw (not pinfu-p)) 2 0))
-							(for-open-pinfu (if (not closed) 2 0))
-							(base-total (+ for-all-of-above for-self-draw for-open-pinfu))
-							(for-winning (cond (seven-pairs 25)
-											   (self-draw 20)
-											   (t 30)))
-							(total (+ base-total for-winning)))
-					   (values (* 10 (ceiling total 10))
-							   base-total))))
+					 (let ((pairs (sets :all 'pair)))
+					   (if (= 7 (length pairs))
+						 (values 25 0)
+						 (let* ((for-melds (count-fu-melds (sets :all 'pon 'kan)))
+								(for-pairs (count-fu-pairs pairs #'of-good-wind-p))
+								(for-waits (count-fu-waits winning-set winning-tile))
+								(for-all-of-above (+ for-melds for-pairs for-waits))
+								(pinfu-p (zerop for-all-of-above))
+								(for-self-draw (if (and self-draw (not pinfu-p)) 2 0))
+								(for-open-pinfu (if (and pinfu-p (not closed)) 2 0))
+								(base-total (+ for-all-of-above for-self-draw for-open-pinfu))
+								(for-winning (if (and closed (not self-draw)) 30 20))
+								(total (+ base-total for-winning)))
+						   (values (* 10 (ceiling total 10))
+								   base-total))))))
 
 
 
@@ -456,6 +496,18 @@
 (defmacro scoring-yakus (scoring)
   `(cddr ,scoring))
 
+(defun scoring-add-han (scoring han for &key prepend)
+  (if (and (plusp han) for)
+
+	(let* ((combined-han (combine-han (scoring-han scoring) han))
+		   (new-yakus (if (listp for) for (list for)))
+		   (old-yakus (scoring-yakus scoring))
+		   (combined-yakus (if prepend
+							 (nconc new-yakus old-yakus)
+							 (nconc old-yakus new-yakus))))
+	  (list* combined-han (scoring-fu scoring) combined-yakus))
+	scoring))
+
 (defun higher-scoring (&optional a b)
   (if (and a b)
 	(let ((han-a (scoring-han a))
@@ -494,6 +546,14 @@
   (loop for (name han-closed han-open) in (reverse *yaku-list*)
 		do (format t "~(~a~): ~(~a~) closed~[~:;, ~(~a~) open~]~%"
 				   name han-closed (if (equal 0 han-open) 0 1) han-open)))
+
+
+(defun count-dora-hits (dora tiles)
+  (count-if (lambda (tile) (tile-consec dora tile :wrap-around t)) tiles))
+
+(defun count-doras-hits (doras tiles)
+  (loop for dora in doras 
+		sum (count-dora-hits dora tiles)))
 
 
 (defun eval-ordering (hand ord)
@@ -642,7 +702,7 @@
 	(values (list) tiles)))
 
 (defun find-straight (tiles max-length)
-  (find-matching (lambda (t1 t2) (tile-consec t1 t2)) tiles max-length))
+  (find-matching (lambda (t1 t2) (and (suited-p t2) (tile-consec t1 t2))) tiles max-length))
 
 (defmacro define-straight-pattern (name len)
   `(define-pattern ,name ,len
@@ -653,7 +713,7 @@
 					   (values nil 0)))))
 
 (define-straight-pattern chi 3)
-(define-straight-pattern ittsuu 9)
+;(define-straight-pattern ittsuu 9)
 
 (define-pattern twelve-singles 12
 				(multiple-value-bind (found skipped)
@@ -688,6 +748,9 @@
 
 (defun set-suit (chi)
   (suit (set-first chi)))
+
+(defun lambda-set-of-suit (suit)
+  (lambda (set) (equal suit (set-suit set))))
 
 (defun set-equal-rank (c1 c2)
   (= (set-rank c1) (set-rank c2)))
@@ -739,8 +802,8 @@
 (defun all-kinds-of-type (predicate amount sets)
   (all-of predicate #'set-kind amount sets))
 
-(defun all-suits-of-rank (rank amount sets)
-  (all-of (lambda (tile) (of-rank rank tile)) #'set-suit sets))
+;(defun all-suits-of-rank (rank amount sets)
+;  (all-of (lambda (tile) (of-rank rank tile)) #'set-suit amount sets))
 
 (defgeneric green-p (tile))
 (defmethod green-p ((tile tile))
@@ -758,6 +821,13 @@
 			 (first-other-suited (find-if-not (lambda-of-suit suit) tiles)))
 		(not first-other-suited)))))
 
+(defun sets-of-rank (rank sets)
+  (remove-if-not (lambda (set) (= rank (set-rank set))) sets))
+
+
+(define-yaku riichi 1 0
+			 (hand-riichi hand))
+
 (define-yaku menzen-tsumo 1 0
 			 (and self-draw closed))
 
@@ -768,13 +838,21 @@
 			 (zerop base-fu))
 
 (define-yaku iipeikou 1 0
-			 (= 1 (count-chi-pairs (sets :closed 'chi))))
+			 (= 1 (count-chi-pairs (sets :all 'chi))))
 
 (define-yaku sanshoku-doujun 2 1
 			 (sanshoku (sets :all 'chi)))
 
 (define-yaku ittsuu 2 1
-			 (sets :all 'ittsuu))
+			 (loop with chis = (sets :all 'chi)
+				   with bottoms = (sets-of-rank 1 chis)
+				   with middles = (sets-of-rank 4 chis)
+				   with tops = (sets-of-rank 7 chis)
+				   for bottom in bottoms
+				   for suit = (set-suit bottom)
+				   thereis (and (find-if (lambda-set-of-suit suit) middles)
+								(find-if (lambda-set-of-suit suit) tops))))
+
 
 ; fanpai
 (loop for type in (list* :prevailing-wind :seat-wind (mapcar #'second *dragon-table*))
@@ -790,7 +868,12 @@
 					 ((dragon-p tile) kind)
 					 ((and wind (equal wind prevailing-wind)) 'prevailing-wind)
 					 ((and wind (equal wind seat-wind)) 'seat-wind))
-		if type collect (list 1 (intern (format nil "FANPAI-~a" type)))))
+		if (dragon-p tile) collect kind into types
+		if (equal wind prevailing-wind) collect 'prevailing-wind into types
+		if (equal wind seat-wind) collect 'seat-wind into types
+		finally (return
+				  (loop for type in types
+						collect (list 1 (intern (format nil "FANPAI-~a" type)))))))
 
 (define-yaku chanta 2 1
 			 (and (any #'terminal-p tiles)
@@ -832,7 +915,7 @@
 					   (sets :all 'pair 'chi 'pon 'kan))))
 
 (define-yaku ryanpeikou 3 0
-			 (= 2 (count-chi-pairs (sets :closed 'chi))))
+			 (= 2 (count-chi-pairs (sets :all 'chi))))
 
 (define-yaku chinitsu 6 5
 			 (all-of-same-suit tiles))
@@ -882,7 +965,7 @@
 
 ;(print *paths*)
 
-(defparameter *test-hands*
+(defparameter *old-test-hands*
   '((east east ron M1 M2 M3 P2 P3 P4 S3 S4 S5 (open M6 M7 M8) P7 P7)	; nothing
 	(east east ron M3 M3 P1 P1 P5 P5 S1 S1 S8 E E C C S8)				; chiitoitsu
 	(east east tsumo M1 M2 M3 M5 M5 P3 P4 P7 P8 P9 S4 S5 S6 P2)			; pinfu
@@ -940,33 +1023,115 @@
 		  (open S1 S1 S1 S1) (closed S2 S2 S2 S2) M5 M5)
 	))
 
+(defparameter *fixed-old-test-hands* (loop for old-hand in *old-test-hands*
+										   collect (list* (pop old-hand)
+														  (pop old-hand)
+														  nil
+														  (pop old-hand)
+														  old-hand)))
+
+(defparameter *test-hands*
+  '((east north (S6) ron B B B C C W W N N N S S S W)
+	(south west (M2 M6) tsumo F C C C (closed S7 S7 S7 S7) (open W W W) (open B B B) F)
+	(south south (P4) (S9) ron M3 M4 M5 P3 P4 P5 S2 S3 S3 S3 S4 S4 S5 S3)
+	(south south (S3) ron M1 M1 M1 B B F F (open C C C) (open S S S) B)
+	(south east (P5) ron M1 M1 M1 M2 M3 M4 M5 M6 M7 M8 M9 M9 M9 M5)
+	(east west (E S6 M2 P4) ron M1 E E E (open M3 M3 M3 M3) (open C C C C) (open S9 S9 S9 S9) M1)
+	))
+
+
 ;(list-yakus)
 
-(defun format-scoring (scoring)
+(defun format-scoring (hand scoring)
+  (flet ((r (payment) (round-up-to 100 payment)))
+
+	(let* ((han (scoring-han scoring))
+		   (fu (scoring-fu scoring))
+		   (limit (limit han fu))
+		   (han-fu (if limit
+					 (format nil "~a (~:[~*~;~d han ~]~d fu)" limit (numberp han) han fu)
+					 (format nil "~d han ~d fu" han fu)))
+		   (east-win (equal :east (hand-seat-wind hand)))
+		   (self-draw (hand-self-draw hand))
+		   (other (payment hand scoring))
+		   (east (* 2 other))
+		   (payments (cond ((and east-win self-draw) (format nil "Everyone pays ~d." (r east)))
+						   (self-draw (format nil "East pays ~d, others pay ~d." (r east) (r other)))
+						   (t (format nil "Discarder pays ~d." (r (cond (east-win (* 3 east))
+																		(t (+ east (* 2 other))))))))))
+
+	  (if (equal han 0)
+		"No yaku."
+		(format nil "~@(~a~)~%  ~{~(~a~) ~}~%  ~a" han-fu (scoring-yakus scoring) payments)))))
+
+(defun scoring-add-dora-han (scoring hits type)
+  (scoring-add-han scoring hits (make-list hits :initial-element type)))
+
+(defparameter *limit-points* '(
+							   :kazoe-mangan 2000
+							   :mangan 2000
+							   :haneman 3000
+							   :baiman 4000
+							   :sanbaiman 6000
+							   :kazoe-yakuman 8000
+							   :yakuman 8000
+							   :double-yakuman 16000
+							   ))
+
+(defun round-up-to (up-to x)
+  (* up-to (ceiling x up-to)))
+
+(defun payment (hand scoring)
   (let* ((han (scoring-han scoring))
 		 (fu (scoring-fu scoring))
 		 (limit (limit han fu))
-		 (score (if limit limit (format nil "~d han ~d fu" han fu))))
-	(if (equal han 0)
-	  "Nothing."
-	  (format nil "~:(~a~): ~{~(~a~) ~}" score (scoring-yakus scoring)))))
+		 (base (cond
+				 (limit (getf *limit-points* limit))
+				 (t (* fu (expt 2 (+ 2 han)))))))
+	base))
+
 
 (defun score (hand)
-  (let ((scorings (eval-all-orderings hand)))
-	(reduce #'higher-scoring scorings)))
+  (let* ((scorings (eval-all-orderings hand))
+		 (best (reduce #'higher-scoring scorings))
+		 (tiles (hand-tiles hand))
+		 (dora-hits (count-doras-hits (hand-doras hand) tiles))
+		 (ura-dora-hits (if (hand-riichi hand) (count-doras-hits (hand-ura-doras hand) tiles) 0)))
+	(when (not (equal 0 (scoring-han best)))
+	  (setf best (scoring-add-dora-han best dora-hits 'dora))
+	  (setf best (scoring-add-dora-han best ura-dora-hits 'ura-dora)))
+	best))
+
+
+(defun read-parse-and-score (line)
+  (handler-case
+	   (let* ((hand-str (format nil "(~a)" line))
+			 (raw-hand (with-input-from-string (in hand-str) (read in)))
+			 (hand (parse-hand raw-hand))
+			 (scoring (score hand)))
+		 (format-scoring hand scoring))
+	   (invalid-hand (c) (format nil "Invalid hand: ~a" (reason c)))))
+
 
 (defun main ()
   (handler-case
-	(loop for line = (progn (format t "hand> " ) read-line)
-		  for raw-hand = (with-input-from-string (in line) (read in))
-		  for hand = (parse-hand raw-hand)
-		  do (format t "~a~%" (format-scoring (score hand))))
-	(condition () (format t "Error."))))
+	(loop for line = (read-line)
+		  if (plusp (length line))
+		  do (format t "~&~a~%" (read-parse-and-score line)))
+	(end-of-file () ())
+	(condition () (format t "~&Error.~%")))
+  )
 
-;(loop for raw-hand in (subseq *test-hands* 0)
-;	  for hand = (parse-hand raw-hand)
-;	  ;do (format t "~a~%" raw-hand)
-;	  do (format t "~a~%" (format-scoring (score hand)))
+
+(defun test-hands ()
+  (loop for raw-hand in (subseq *test-hands* 0)
+		for hand = (parse-hand raw-hand)
+		;do (format t "~a~%" raw-hand)
+		do (format t "~a~%~%" (format-scoring hand (score hand)))))
+
+(main)
+;(test-hands)
+
 ;do (format t "~a~%" (sub-paths hand))
 ;do (format t "~a~%" hand)
 ;do (format t "~{~:a ~}~%~%" (eval-all-orderings hand))
