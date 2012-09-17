@@ -532,7 +532,7 @@
 
 
 (defun limit (han fu)
-  (case han
+  (case (if (and (numberp han) (> han 13)) 13 han)
 	(:double-yakuman :double-yakuman)
 	(:yakuman :yakuman)
 	(13 :kazoe-yakuman)
@@ -1044,6 +1044,17 @@
 
 ;(list-yakus)
 
+
+(defun format-hans (hans)
+  (loop with formatted = (list)
+		with prev = nil
+		for han in hans
+		if (not (equal prev han))
+		do (progn (push (list (count han hans) han) formatted)
+				  (setf prev han))
+		finally (return (nreverse formatted))))
+
+
 (defun format-scoring (hand scoring)
   (flet ((r (payment) (round-up-to 100 payment)))
 	(let* ((han (scoring-han scoring))
@@ -1063,7 +1074,8 @@
 
 	  (if (equal han 0)
 		"No yaku."
-		(format nil "~@(~a~)~%  ~{~(~a~) ~}~%  ~a" han-fu (scoring-yakus scoring) payments)))))
+		(format nil "~@(~a~)~%~{~&~{~d x ~(~a~)~}~}~%~a" han-fu
+				(format-hans (scoring-yakus scoring)) payments)))))
 
 (defun scoring-add-dora-han (scoring hits type)
   (scoring-add-han scoring hits (make-list hits :initial-element type)))
@@ -1129,8 +1141,8 @@
 	(loop for line = (read-line)
 		  if (plusp (length line)) do (format t "~&~a~%" (read-parse-and-score line)))
 	(end-of-file () ())
-	(condition () (format t "~&Error.")))
-  )
+	(condition () (format t "~&Error.~%")))
+)
 
 
 (defun test-hands ()
