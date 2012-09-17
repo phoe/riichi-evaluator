@@ -278,10 +278,12 @@
 
 
 (defun parse-set (seq)
-  (let* ((open-or-closed (ecase (first seq)
-						   ('open :open)
-						   ('closed :closed)))
-		 (tiles (mapcar #'parse-tile (rest seq)))
+  (let* ((match (case (first seq)
+				  ('open :open)
+				  ('closed :closed)
+				  (otherwise nil)))
+		 (open-or-closed (or match :open))
+		 (tiles (mapcar #'parse-tile (if match (rest seq) seq)))
 		 (type (ecase (length tiles)
 				 (2 'pair)
 				 (3 (if (tile-equal (first tiles) (second tiles)) 'pon 'chi))
@@ -1044,7 +1046,6 @@
 
 (defun format-scoring (hand scoring)
   (flet ((r (payment) (round-up-to 100 payment)))
-
 	(let* ((han (scoring-han scoring))
 		   (fu (scoring-fu scoring))
 		   (limit (limit han fu))
@@ -1103,23 +1104,32 @@
 	best))
 
 
+(defun replace-char-with-str (needle str haystack)
+  (with-output-to-string (result)
+	(loop for c across haystack
+		  do (if (char= c needle)
+			   (write-string str result)
+			   (write-char c result)))))
+
+
 (defun read-parse-and-score (line)
   (handler-case
-	   (let* ((hand-str (format nil "(~a)" line))
-			 (raw-hand (with-input-from-string (in hand-str) (read in)))
-			 (hand (parse-hand raw-hand))
-			 (scoring (score hand)))
-		 (format-scoring hand scoring))
-	   (invalid-hand (c) (format nil "Invalid hand: ~a" (reason c)))))
+	(let* ((hand-str (format nil "(~a)" 
+							 (substitute #\) #\] ; weird parameter order
+										 (replace-char-with-str #\[ "(closed " line))))
+		   (raw-hand (with-input-from-string (in hand-str) (read in)))
+		   (hand (parse-hand raw-hand))
+		   (scoring (score hand)))
+	  (format-scoring hand scoring))
+	(invalid-hand (c) (format nil "Invalid hand: ~a" (reason c)))))
 
 
 (defun main ()
   (handler-case
 	(loop for line = (read-line)
-		  if (plusp (length line))
-		  do (format t "~&~a~%" (read-parse-and-score line)))
+		  if (plusp (length line)) do (format t "~&~a~%" (read-parse-and-score line)))
 	(end-of-file () ())
-	(condition () (format t "~&Error.~%")))
+	(condition () (format t "~&Error.")))
   )
 
 
