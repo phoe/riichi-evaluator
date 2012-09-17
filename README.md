@@ -40,7 +40,7 @@ East round, west wins by self-draw. Open hand with a pon of dragons as the only 
 	east west (S) tsumo S6 P1 P2 P3 M7 M8 M9 M4 M4 M4 (C C C) S6
 
 	1 han 40 fu
-	1 x fanpai-chuu
+	1 x fanpai-chuu (1 han)
 	East pays 700, others pay 400.
 
 
@@ -58,10 +58,10 @@ Thirteen orphans, on a discard. Note that every yaku in the hand is listed, even
 don't increase the score.
 
 	east south (M5) ron M1 M9 P1 P9 S1 S9 E E S W N B F C
-	
+
 	Yakuman (40 fu)
-	1 x kokushi-musou
-	1 x honroutou
+	1 x kokushi-musou (yakuman)
+	1 x honroutou (2 han)
 	Discarder pays 32000.
 
 
@@ -70,8 +70,8 @@ A counted mangan (4 han 40 fu). Two dora hits.
 	east west (S5) ron S6 (P3 P3 P3) (M4 M4 M4) (S3 S3 S3) (N N N) S6
 
 	Kazoe-mangan (4 han 40 fu)
-	1 x toitoi
-	2 x dora
+	1 x toitoi (2 han)
+	2 x dora (1 han)
 	Discarder pays 8000.
 
 
@@ -80,34 +80,36 @@ A counted yakuman with one regular dora and a closed kan of double ura dora.
 	east west (P1 S2) (M5 M5) tsumo M3 M4 M5 P3 P4 P5 S4 S5 [M6 M6 M6 M6] M8 M8 S3
 
 	Kazoe-yakuman (14 han 40 fu)
-	1 x sanshoku-doujun
-	1 x tanyao
-	1 x menzen-tsumo
-	1 x riichi
-	1 x dora
-	8 x ura-dora
+	1 x sanshoku-doujun (2 han)
+	1 x tanyao (1 han)
+	1 x menzen-tsumo (1 han)
+	1 x riichi (1 han)
+	1 x dora (1 han)
+	8 x ura-dora (1 han)
 	East pays 16000, others pay 8000.
 
 
 The only double yakuman recognized by EMA Riichi rules, Big Four Winds.
 
 	east west (P7) tsumo E E E S S S W W W N N N P1 P1
+
 	Double-yakuman (60 fu)
-	1 x daisuushii
-	1 x shousuushii
-	1 x suu-ankou
-	1 x honroutou
-	1 x honitsu
-	1 x toitoi
-	1 x fanpai-prevailing-wind
-	1 x fanpai-seat-wind
-	1 x menzen-tsumo
+	1 x daisuushii (double-yakuman)
+	1 x shousuushii (yakuman)
+	1 x suu-ankou (yakuman)
+	1 x honroutou (2 han)
+	1 x honitsu (3 han)
+	1 x toitoi (2 han)
+	1 x fanpai-prevailing-wind (1 han)
+	1 x fanpai-seat-wind (1 han)
+	1 x menzen-tsumo (1 han)
 	East pays 32000, others pay 16000.
 
 
 A hand without any yaku. Oops! The hand does have a dora hit, but that isn't counted as a yaku.
 
 	east west (M5) ron M4 M5 M6 P4 P4 P4 S7 S7 S7 S1 S2 S3 W W
+
 	No yaku.
 
 
@@ -116,8 +118,19 @@ The same hand with riichi declared.
 	east west (M5) (C) ron M4 M5 M6 P4 P4 P4 S7 S7 S7 S1 S2 S3 W W
 
 	2 han 50 fu
-	1 x riichi
-	1 x dora
+	1 x riichi (1 han)
+	1 x dora (1 han)
 	Discarder pays 3200.
 
+
+Little three dragons.
+
+	east west (m4) tsumo m1 m2 m3 m8 m8 m8 (c c c) (f f f) b b
+
+	Haneman (6 han 40 fu)
+	1 x shousangen (2 han)
+	1 x honitsu (2 han)
+	1 x fanpai-chuu (1 han)
+	1 x fanpai-hatsu (1 han)
+	East pays 6000, others pay 3000.
 

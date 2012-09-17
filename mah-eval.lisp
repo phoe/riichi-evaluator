@@ -629,7 +629,7 @@
 							(when (progn ,@forms)
 							  (let ((han (if closed ,han-closed ,han-open)))
 								(unless (equal han 0)
-								  (list (list han ',name)))))))
+								  (list (list han (list ',name han))))))))
 	   *yaku-matchers*)
 	 (add-yaku-to-list ',name ,han-closed ,han-open)))
 
@@ -875,7 +875,7 @@
 		if (equal wind seat-wind) collect 'seat-wind into types
 		finally (return
 				  (loop for type in types
-						collect (list 1 (intern (format nil "FANPAI-~a" type)))))))
+						collect (list 1 (list (intern (format nil "FANPAI-~a" type)) 1))))))
 
 (define-yaku chanta 2 1
 			 (and (any #'terminal-p tiles)
@@ -1050,8 +1050,11 @@
 		with prev = nil
 		for han in hans
 		if (not (equal prev han))
-		do (progn (push (list (count han hans) han) formatted)
-				  (setf prev han))
+		do (let ((name (first han))
+				 (value (second han)))
+			 (push (format nil "~d x ~a (~:[~a~;~d han~])"
+						   (count han hans) name (numberp value) value) formatted)
+			 (setf prev han))
 		finally (return (nreverse formatted))))
 
 
@@ -1074,11 +1077,11 @@
 
 	  (if (equal han 0)
 		"No yaku."
-		(format nil "~@(~a~)~%~{~&~{~d x ~(~a~)~}~}~%~a" han-fu
+		(format nil "~@(~a~)~%~{~&~(~a~)~}~%~a" han-fu
 				(format-hans (scoring-yakus scoring)) payments)))))
 
 (defun scoring-add-dora-han (scoring hits type)
-  (scoring-add-han scoring hits (make-list hits :initial-element type)))
+  (scoring-add-han scoring hits (make-list hits :initial-element (list type 1))))
 
 (defparameter *limit-points* '(
 							   :kazoe-mangan 2000
@@ -1137,11 +1140,11 @@
 
 
 (defun main ()
-  (handler-case
+ ; (handler-case
 	(loop for line = (read-line)
 		  if (plusp (length line)) do (format t "~&~a~%" (read-parse-and-score line)))
-	(end-of-file () ())
-	(condition () (format t "~&Error.~%")))
+;	(end-of-file () ())
+;	(condition () (format t "~&Error.~%")))
 )
 
 
