@@ -123,7 +123,7 @@ The same hand with riichi declared.
 	Discarder pays 3200.
 
 
-Little three dragons.
+Little three dragons. (Note that letter case doesn't matter.)
 
 	east west (m4) tsumo m1 m2 m3 m8 m8 m8 (c c c) (f f f) b b
 
