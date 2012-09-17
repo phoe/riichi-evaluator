@@ -54,7 +54,7 @@ the winning tile is given last. The above hand could also be given as follows:
 	East pays 700, others pay 400.
 
 
-Thirteen orphans, on a discard. Not that every yaku in the hand is listed, even ones that
+Thirteen orphans, on a discard. Note that every yaku in the hand is listed, even ones that
 don't increase the score.
 
 	east south (M5) ron M1 M9 P1 P9 S1 S9 E E S W N B F C
@@ -89,6 +89,35 @@ A counted yakuman with one regular dora and a closed kan of double ura dora.
 	East pays 16000, others pay 8000.
 
 
+The only double yakuman recognized by EMA Riichi rules, Big Four Winds.
 
+	east west (P7) tsumo E E E S S S W W W N N N P1 P1
+	Double-yakuman (60 fu)
+	1 x daisuushii
+	1 x shousuushii
+	1 x suu-ankou
+	1 x honroutou
+	1 x honitsu
+	1 x toitoi
+	1 x fanpai-prevailing-wind
+	1 x fanpai-seat-wind
+	1 x menzen-tsumo
+	East pays 32000, others pay 16000.
+
+
+A hand without any yaku. Oops! The hand does have a dora hit, but that isn't counted as a yaku.
+
+	east west (M5) ron M4 M5 M6 P4 P4 P4 S7 S7 S7 S1 S2 S3 W W
+	No yaku.
+
+
+The same hand with riichi declared.
+
+	east west (M5) (C) ron M4 M5 M6 P4 P4 P4 S7 S7 S7 S1 S2 S3 W W
+
+	2 han 50 fu
+	1 x riichi
+	1 x dora
+	Discarder pays 3200.
 
 
