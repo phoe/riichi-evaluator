@@ -19,7 +19,7 @@ The basic format is a follows:
 
 The final tile specified is taken to be the winning tile.
 	
-If ura dora tiles are listed, it is assumed riichi was declared.
+If ura dora tiles are listed, it is assumed the winning player declared riichi.
 	
 Open sets are specified as follows:
 
