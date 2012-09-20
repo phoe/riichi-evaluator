@@ -41,8 +41,8 @@
   (append *wind-table* *dragon-table*))
 
 
-(define-condition a-not-in-table (error) ((a :initarg :a)))
-(define-condition b-not-in-table (error) ((b :initarg :b)))
+(define-condition a-not-in-table (error) ((a :initarg :a :reader a-not-in-table-a)))
+(define-condition b-not-in-table (error) ((b :initarg :b :reader b-not-in-table-b)))
 
 (defun table-a-with-b (table key)
   (or
@@ -254,27 +254,23 @@
   ura-doras)
 
 
-(define-condition parse-tile-error (error)
-  ((text :initarg :text
-		 :reader text)))
+(define-condition invalid-tile (error)
+  ((symbol :initarg :symbol
+		   :reader invalid-tile-symbol)))
 
 (defun parse-tile (symbol)
-  (let ((text (string symbol)))
-	(case (length text)
-	  (2 (make-instance 'suited-tile
-						:suit (table-b-with-a *suit-table* (char text 0))
-						:rank (or
-								(digit-char-p (char text 1))
-								(error 'parse-tile-error :text text))))
-	  (1 (make-instance 'honor-tile
-						:kind (table-b-with-a *honor-table* (char text 0))))
-	  (otherwise (error 'parse-tile-error :text text)))))
-
-
-(defun parse-text-hand (text)
-  (sort (loop for word in (words text)
-			  collect (parse-tile word))
-		#'tile-less))
+  (handler-case 
+	(let ((text (string symbol)))
+	  (ecase (length text)
+		(2 (make-instance 'suited-tile
+						  :suit (table-b-with-a *suit-table* (char text 0))
+						  :rank (or
+								  (digit-char-p (char text 1))
+								  (error 'invalid-tile :symbol symbol))))
+		(1 (make-instance 'honor-tile
+						  :kind (table-b-with-a *honor-table* (char text 0))))))
+	(a-not-in-table (c) (error 'invalid-tile :symbol symbol))
+	(type-error (c) (error 'invalid-tile :symbol symbol))))
 
 
 (defun parse-set (seq)
@@ -283,56 +279,111 @@
 				  ('closed :closed)
 				  (otherwise nil)))
 		 (open-or-closed (or match :open))
-		 (tiles (mapcar #'parse-tile (if match (rest seq) seq)))
+		 (tiles (sort (mapcar #'parse-tile (if match (rest seq) seq)) #'tile-less))
 		 (type (ecase (length tiles)
 				 (2 'pair)
 				 (3 (if (tile-equal (first tiles) (second tiles)) 'pon 'chi))
 				 (4 'kan))))
+	(when (and (equal :open open-or-closed) (equal 'pair type))
+	  (error 'invalid-hand :reason "A pair cannot be open."))
 	(append (list open-or-closed type) tiles)))
 
 
-(define-condition invalid-hand (condition)
+(define-condition invalid-hand (error)
   ((reason :initarg :reason
 		   :initform "No reason given."
 		   :reader reason)))
 
+(define-condition invalid-hand-element (invalid-hand)
+  ((element :initarg :element
+			:reader element)
+   (problem :initarg :problem
+			:reader problem)))
+
+(defmethod reason ((c invalid-hand-element))
+  (format nil "Invalid ~a: ~a" (element c) (string (problem c))))
+
+
+(defun parse-tiles (seq)
+  (loop for item in seq
+		if (listp item) collect (parse-set item) into locked-sets
+		if (symbolp item) collect (parse-tile item) into free-tiles
+		finally (return (values free-tiles locked-sets))))
+
+
+(defun parse-dora-list (which seq)
+  (handler-case (mapcar #'parse-tile seq)
+	(invalid-tile (c) (error 'invalid-hand-element
+							 :element which
+							 :problem (invalid-tile-symbol c)))
+	(type-error (c) (error 'invalid-hand-element
+						   :element (format nil "~a list" which)
+						   :problem (type-error-datum c)))))
+
 (defun parse-hand (seq)
-  (flet ((parse-wind (symbol) (ccase symbol
-									 ('east :east)
-									 ('south :south)
-									 ('west :west)
-									 ('north :north))))
-	(let* ((prevailing-wind (parse-wind (pop seq)))
-		   (seat-wind (parse-wind (pop seq)))
-		   (doras (mapcar #'parse-tile (pop seq)))
-		   (riichi (listp (first seq)))
-		   (ura-doras (when riichi (mapcar #'parse-tile (pop seq))))
-		   (self-draw (ecase (pop seq)
-						('tsumo t)
-						('ron nil)))
+  (labels ((error-ood (which) (error 'invalid-hand
+									 :reason (format nil "Ran out of data before ~a" which)))
+
+		   (peek (which) (if seq
+						   (first seq)
+						   (error-ood which)))
+		   (next (which) (if seq
+						   (pop seq)
+						   (error-ood which)))
+		   (read-wind (which) (let ((wind (next which)))
+								(case wind
+								  ('east :east)
+								  ('south :south)
+								  ('west :west)
+								  ('north :north)
+								  (otherwise (error 'invalid-hand-element
+													:element which
+													:problem wind))))))
+	(let* ((prevailing-wind (read-wind "prevailing wind"))
+		   (seat-wind (read-wind "seat wind"))
+		   (doras (parse-dora-list "dora" (next "dora list")))
+		   (riichi (listp (peek "tsumo/ron indicator or ura dora list")))
+		   (ura-doras (when riichi (parse-dora-list "ura dora" (next "ura dora list"))))
+		   (self-draw (let ((tsumo-ron (next "tsumo/ron indicator")))
+						(case tsumo-ron
+						  ('tsumo t)
+						  ('ron nil)
+						  (otherwise (error 'invalid-hand-element
+											:element "tsumo/ron indicator"
+											:problem tsumo-ron)))))
 		   )
-	  (loop for item in seq
-			if (listp item) collect (parse-set item) into locked-sets
-			if (symbolp item) collect (parse-tile item) into free-tiles
-			finally (let* ((tiles-in-locked-sets (mapcan #'set-tiles locked-sets))
-						   (winning-tile (car (last free-tiles)))
-						   (tiles (append free-tiles tiles-in-locked-sets))
-						   (closed (all #'set-closed-p locked-sets)))
-					  (when (and riichi (not closed))
-						(signal 'invalid-hand :reason "Riichi with open hand"))
-					  (return
-						(make-hand :prevailing-wind prevailing-wind
-								   :seat-wind seat-wind
-								   :self-draw self-draw
-								   :winning-tile winning-tile
-								   :tiles (sort tiles #'tile-less)
-								   :locked-sets locked-sets
-								   :free-tiles (sort free-tiles #'tile-less)
-								   :closed closed
-								   :riichi riichi
-								   :doras doras
-								   :ura-doras ura-doras
-								   )))))))
+	  (multiple-value-bind (free-tiles locked-sets) (parse-tiles seq)
+		(cond ((not (or free-tiles locked-sets))
+			   (error 'invalid-hand :reason "No tiles specified."))
+			  ((not free-tiles)
+			   (error 'invalid-hand
+					  :reason "The winning tile must be be specified and not in a set.")))
+		(let* ((tiles-in-locked-sets (mapcan #'set-tiles locked-sets))
+			   (winning-tile (car (last free-tiles)))
+			   (tiles (append free-tiles tiles-in-locked-sets))
+			   (closed (all #'set-closed-p locked-sets)))
+		  (when (and riichi (not closed))
+			(error 'invalid-hand :reason "Riichi with open hand"))
+		  (let ((tile-count (length tiles)))
+			(cond
+			  ((< tile-count 14)
+			   (error 'invalid-hand
+					  :reason (format nil "Too few tiles (~d)" tile-count)))
+			  ((> tile-count 14)
+			   (error 'invalid-hand
+					  :reason (format nil "Too many tiles (~d)" tile-count)))))
+		  (make-hand :prevailing-wind prevailing-wind
+					 :seat-wind seat-wind
+					 :self-draw self-draw
+					 :winning-tile winning-tile
+					 :tiles (sort tiles #'tile-less)
+					 :locked-sets locked-sets
+					 :free-tiles (sort free-tiles #'tile-less)
+					 :closed closed
+					 :riichi riichi
+					 :doras doras
+					 :ura-doras ura-doras
+					 ))))))
 
 
 (defparameter *pattern-matchers* (list))
@@ -440,8 +491,8 @@
 (defun count-fu (hand ord)
   (with-hand-helpers hand ord
 					 (let ((pairs (sets :all 'pair)))
-					   (if (= 7 (length pairs))
-						 (values 25 0)
+					   (if (seven-unique-pairs pairs)
+						 (values 25 -1)
 						 (let* ((for-melds (count-fu-melds (sets :all 'pon 'kan)))
 								(for-pairs (count-fu-pairs pairs #'of-good-wind-p))
 								(for-waits (count-fu-waits winning-set winning-tile))
@@ -479,14 +530,19 @@
   (cond
 	((either a b :double-yakuman) :double-yakuman)
 	((either a b :yakuman) :yakuman)
+	((> (+ a b) 13) 13) ; limit han at 13
 	(t (+ a b))))
 
 (defun combine-yakulists (&optional a b)
-  (if (not a)
-	(list 0)
-	(let ((new-han (combine-han (yakulist-han a) (yakulist-han b)))
-		  (new-yakus (nconc (yakulist-yakus a) (yakulist-yakus b))))
-	  (cons new-han new-yakus))))
+  (cond ((not a) (list 0))
+		; Yakuman are not cumulative // but this is only the listing, right?
+		;((double-yakuman-p b) b)
+		;((double-yakuman-p a) a)
+		;((yakuman-p b) b)
+		;((yakuman-p a) a)
+		(t 	(let ((new-han (combine-han (yakulist-han a) (yakulist-han b)))
+				  (new-yakus (nconc (yakulist-yakus a) (yakulist-yakus b))))
+			  (cons new-han new-yakus)))))
 
 
 (defmacro scoring-han (scoring)
@@ -570,6 +626,11 @@
 
 
 
+(defun seven-unique-pairs (pairs)
+  (and (= 7 (length pairs))
+	   (no-identical-sets pairs)))
+
+
 (defun ordering-ready-p (hand ord)
   (with-hand-helpers hand ord
 					 (let ((chi-pon-kan (+ (count-sets :all 'chi 'pon 'kan)
@@ -578,7 +639,7 @@
 					   (or
 						 (and (= 4 chi-pon-kan)
 							  (= 1 pair))
-						 (= 7 pair)
+						 (seven-unique-pairs (sets :all 'pair))
 						 (and (= 1 (count-sets :all 'twelve-singles))
 							  (= 1 pair)
 							  (not (any #'simple-p tiles)))))))
@@ -603,6 +664,9 @@
 		  collect (list alt-hand alt-ord win-set))))
 
 
+(define-condition no-mahjong (invalid-hand)
+  ((reason :initform "No mahjong.")))
+
 (defun eval-all-orderings (hand)
   (let ((locked-sets (hand-locked-sets hand)))
 	(loop for partial-ord in (sub-paths (hand-free-tiles hand))
@@ -614,7 +678,11 @@
 		  ; all of them should be considered as the winning tile in turn.
 		  (loop for (alt-hand alt-ord) in (consider-winning-tile
 											hand qualified-partial-ord full-ord)
-				collect (eval-ordering alt-hand alt-ord)))))
+				collect (eval-ordering alt-hand alt-ord))
+		  into scorings
+		  finally (return (restart-case (or scorings
+											(error 'no-mahjong))
+							(use-value (value) value))))))
 
 
 (defun add-yaku-to-list (name han-closed han-open)
@@ -754,6 +822,15 @@
 (defun lambda-set-of-suit (suit)
   (lambda (set) (equal suit (set-suit set))))
 
+(defun set-equal (s1 s2)
+  (and (equal (set-type s1) (set-type s2))
+	   (let ((tiles-1 (set-tiles s1))
+			 (tiles-2 (set-tiles s2)))
+		 (loop for i from 0 upto (1- (length tiles-1))
+			   for t1 = (elt tiles-1 i)
+			   for t2 = (elt tiles-2 i)
+			   always (tile-equal t1 t2)))))
+
 (defun set-equal-rank (c1 c2)
   (= (set-rank c1) (set-rank c2)))
 
@@ -870,12 +947,25 @@
 					 ((dragon-p tile) kind)
 					 ((and wind (equal wind prevailing-wind)) 'prevailing-wind)
 					 ((and wind (equal wind seat-wind)) 'seat-wind))
-		if (dragon-p tile) collect kind into types
-		if (equal wind prevailing-wind) collect 'prevailing-wind into types
-		if (equal wind seat-wind) collect 'seat-wind into types
+		if (dragon-p tile) collect kind into dragon-types
+		if (equal wind prevailing-wind) collect 'prevailing-wind into wind-types
+		if (equal wind seat-wind) collect 'seat-wind into wind-types
 		finally (return
-				  (loop for type in types
-						collect (list 1 (list (intern (format nil "FANPAI-~a" type)) 1))))))
+				  (let ((all-types (if (= 3 (length dragon-types))
+									 wind-types
+									 (nconc dragon-types wind-types))))
+					(loop for type in all-types
+						  collect (list 1 (list (intern (format nil "FANPAI-~a" type)) 1)))))))
+
+(defun terminals-and-honors (tiles)
+  (and (not (any #'simple-p tiles))
+	   (any #'terminal-p tiles)
+	   (any #'honor-p tiles)))
+
+(defun no-identical-sets (sets)
+  (= (length sets)
+	 (length (remove-duplicates sets :test #'set-equal))))
+
 
 (define-yaku chanta 2 1
 			 (and (any #'terminal-p tiles)
@@ -885,7 +975,7 @@
 					   (sets :all 'pair 'chi 'pon 'kan))))
 
 (define-yaku chiitoitsu 2 0
-			 (= 7 (count-sets :all 'pair)))
+			 (seven-unique-pairs (sets :all 'pair)))
 
 (define-yaku sanshoku-doukou 2 2
 			 (sanshoku (remove-if-not
@@ -900,16 +990,20 @@
 
 (define-yaku toitoi 2 2
 			 (= 4 (count-sets :all 'pon 'kan)))
+;	  (/= 4 (count-sets :closed 'pon 'kan)))) // cumulative?
 
 (define-yaku honitsu 3 2
 			 (if (any #'honor-p tiles)
 			   (all-of-same-suit (remove-if #'honor-p tiles))))
 
 (define-yaku shousangen 2 2
-			 (all-kinds-of-type #'dragon-p 3 (sets :all 'pair 'pon 'kan)))
+			 (let ((pairs (sets :all 'pair)))
+			   (and (= 1 (length pairs))
+					(dragon-p (set-first (first pairs)))
+					(all-kinds-of-type #'dragon-p 3 (sets :all 'pair 'pon 'kan)))))
 
 (define-yaku honroutou 2 2
-			 (not (any #'simple-p tiles)))
+			 (terminals-and-honors tiles)) 
 
 (define-yaku junchan 3 2
 			 (and (plusp (count-sets :all 'chi))
@@ -934,7 +1028,8 @@
 			 (all-kinds-of-type #'dragon-p 3 (sets :all 'pon 'kan)))
 
 (define-yaku shousuushii :yakuman :yakuman
-			 (all-kinds-of-type #'wind-p 4 (sets :all 'pair 'pon 'kan)))
+			 (and (all-kinds-of-type #'wind-p 4 (sets :all 'pair 'pon 'kan))
+				  (= 1 (count-sets :all 'pair))))
 
 (define-yaku daisuushii :double-yakuman :double-yakuman
 			 (all-kinds-of-type #'wind-p 4 (sets :all 'pon 'kan)))
@@ -1050,10 +1145,12 @@
 		with prev = nil
 		for han in hans
 		if (not (equal prev han))
-		do (let ((name (first han))
-				 (value (second han)))
+		do (let* ((name (first han))
+				  (value (second han))
+				  (numeric (numberp value))
+				  (repeats (count han hans)))
 			 (push (format nil "~d x ~a (~:[~a~;~d han~])"
-						   (count han hans) name (numberp value) value) formatted)
+						   repeats name numeric (if numeric (* repeats value) value)) formatted)
 			 (setf prev han))
 		finally (return (nreverse formatted))))
 
@@ -1127,8 +1224,11 @@
 			   (write-char c result)))))
 
 
+(defun return-text (text)
+  (invoke-restart 'return-text text))
+
 (defun read-parse-and-score (line)
-  (handler-case
+  (restart-case 
 	(let* ((hand-str (format nil "(~a)" 
 							 (substitute #\) #\] ; weird parameter order
 										 (replace-char-with-str #\[ "(closed " line))))
@@ -1136,16 +1236,22 @@
 		   (hand (parse-hand raw-hand))
 		   (scoring (score hand)))
 	  (format-scoring hand scoring))
-	(invalid-hand (c) (format nil "Invalid hand: ~a" (reason c)))))
+	(return-text (text) text)))
 
+
+(defun terminate (c)
+  (invoke-restart 'terminate))
 
 (defun main ()
- ; (handler-case
-	(loop for line = (read-line)
-		  if (plusp (length line)) do (format t "~&~a~%" (read-parse-and-score line)))
-;	(end-of-file () ())
-;	(condition () (format t "~&Error.~%")))
-)
+  (handler-bind
+	((invalid-hand (lambda (c) (return-text (format nil "Invalid hand: ~a" (reason c)))))
+	 (end-of-file #'terminate)
+	 (error (lambda (c) (return-text (format nil "Unexpected error." c))))
+	 )
+	(loop for line = (restart-case (read-line)
+					   (use-value (value) value)
+					   (terminate () (return nil)))
+		  if (plusp (length line)) do (format t "~&~a~%" (read-parse-and-score line)))))
 
 
 (defun test-hands ()
