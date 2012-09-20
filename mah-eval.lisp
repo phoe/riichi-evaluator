@@ -377,12 +377,12 @@
 		   (ura-doras (when riichi (parse-dora-list "ura dora" (next "ura dora list"))))
 		   (self-draw (let ((tsumo-ron (next "tsumo/ron indicator")))
 						(case tsumo-ron
-						  ('tsumo t)
-						  ('ron nil)
+						  ((tsumo t) t)
+						  ((ron r) nil)
 						  (otherwise (error 'invalid-hand-element
 											:element "tsumo/ron indicator"
 											:value tsumo-ron
-											"Not \"tsumo\" or \"ron\"")))))
+											"Not \"tsumo\", \"t\", \"ron\" or \"r\"")))))
 		   )
 	  (multiple-value-bind (free-tiles locked-sets)
 		(handler-case (parse-tiles seq)
@@ -1272,7 +1272,8 @@
 	(let* ((hand-str (format nil "(~a)" 
 							 (substitute #\) #\] ; weird parameter order
 										 (replace-char-with-str #\[ "(closed " line))))
-		   (raw-hand (with-input-from-string (in hand-str) (read in)))
+		   (raw-hand (handler-case (with-input-from-string (in hand-str) (read in))
+					   (end-of-file (c) (error 'invalid-hand :reason "Syntax error."))))
 		   (hand (parse-hand raw-hand))
 		   (scoring (score hand)))
 	  (format-scoring hand scoring))
