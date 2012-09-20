@@ -407,9 +407,10 @@
 			  ((< tile-count 14)
 			   (error 'invalid-hand
 					  :reason (format nil "Too few tiles (~d)" tile-count)))
-			  ((> tile-count 14)
-			   (error 'invalid-hand
-					  :reason (format nil "Too many tiles (~d)" tile-count)))))
+			  ;((> tile-count 14)
+			  ; (error 'invalid-hand
+			;		  :reason (format nil "Too many tiles (~d)" tile-count)))
+			 ))
 		  (make-hand :prevailing-wind prevailing-wind
 					 :seat-wind seat-wind
 					 :self-draw self-draw
