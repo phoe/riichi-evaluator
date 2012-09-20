@@ -92,6 +92,17 @@
 
 (defgeneric tile-consec (tile1 tile2 &key wrap-around))
 
+(defun tile-equal-all (tiles)
+  (if tiles
+	(all (lambda (other-tile) (tile-equal (first tiles) other-tile)) tiles)
+	t))
+
+(defun tile-consec-all (tiles)
+  (case (length tiles)
+	((0 1) t)
+	(otherwise (and (tile-consec (first tiles) (second tiles))
+					(tile-consec-all (rest tiles))))))
+
 
 (defmethod tile-p ((anything t))
   nil)
@@ -273,6 +284,12 @@
 	(type-error (c) (error 'invalid-tile :symbol symbol))))
 
 
+(define-condition invalid-set (error)
+  ((set :initarg :list
+		:reader invalid-set-list)
+   (reason :initarg :reason
+		   :reader invalid-set-reason)))
+
 (defun parse-set (seq)
   (let* ((match (case (first seq)
 				  ('open :open)
@@ -280,12 +297,21 @@
 				  (otherwise nil)))
 		 (open-or-closed (or match :open))
 		 (tiles (sort (mapcar #'parse-tile (if match (rest seq) seq)) #'tile-less))
-		 (type (ecase (length tiles)
+		 (type (case (length tiles)
 				 (2 'pair)
-				 (3 (if (tile-equal (first tiles) (second tiles)) 'pon 'chi))
-				 (4 'kan))))
+				 (3 (cond ((tile-equal-all tiles) 'pon)
+						  ((tile-consec-all tiles) 'chi)
+						  (t 'unknown)))
+				 (4 'kan)
+				 (otherwise 'unknown))))
+	(ecase type 
+	  ('unknown (error 'invalid-set :list seq :reason "Not pair, chi, pon or kan"))
+	  ((pair pon kan) (unless (tile-equal-all tiles)
+						(error 'invalid-set :list seq :reason "All tiles are not the same")))
+	  ('chi (unless (tile-consec-all tiles)
+			  (error 'invalid-set :list seq :reason "Tiles are not consecutive"))))
 	(when (and (equal :open open-or-closed) (equal 'pair type))
-	  (error 'invalid-hand :reason "A pair cannot be open."))
+	  (error 'invalid-set :list seq :reason "A pair cannot be open."))
 	(append (list open-or-closed type) tiles)))
 
 
@@ -296,12 +322,17 @@
 
 (define-condition invalid-hand-element (invalid-hand)
   ((element :initarg :element
-			:reader element)
+			:reader invalid-hand-element-element)
+   (value :initarg :value
+		  :reader invalid-hand-element-value)
    (problem :initarg :problem
-			:reader problem)))
+			:initform nil
+			:reader invalid-hand-element-problem)))
 
 (defmethod reason ((c invalid-hand-element))
-  (format nil "Invalid ~a: ~a" (element c) (string (problem c))))
+  (format nil "Invalid ~a ~a~:[~;: ~:*~a~]." (invalid-hand-element-element c)
+		  (with-output-to-string (out) (princ (invalid-hand-element-value c) out))
+		  (invalid-hand-element-problem c)))
 
 
 (defun parse-tiles (seq)
@@ -315,10 +346,10 @@
   (handler-case (mapcar #'parse-tile seq)
 	(invalid-tile (c) (error 'invalid-hand-element
 							 :element which
-							 :problem (invalid-tile-symbol c)))
+							 :value (invalid-tile-symbol c)))
 	(type-error (c) (error 'invalid-hand-element
 						   :element (format nil "~a list" which)
-						   :problem (type-error-datum c)))))
+						   :value (type-error-datum c)))))
 
 (defun parse-hand (seq)
   (labels ((error-ood (which) (error 'invalid-hand
@@ -332,13 +363,13 @@
 						   (error-ood which)))
 		   (read-wind (which) (let ((wind (next which)))
 								(case wind
-								  ('east :east)
-								  ('south :south)
-								  ('west :west)
-								  ('north :north)
+								  ((east e) :east)
+								  ((south s) :south)
+								  ((west w) :west)
+								  ((north n) :north)
 								  (otherwise (error 'invalid-hand-element
 													:element which
-													:problem wind))))))
+													:value wind))))))
 	(let* ((prevailing-wind (read-wind "prevailing wind"))
 		   (seat-wind (read-wind "seat wind"))
 		   (doras (parse-dora-list "dora" (next "dora list")))
@@ -350,9 +381,16 @@
 						  ('ron nil)
 						  (otherwise (error 'invalid-hand-element
 											:element "tsumo/ron indicator"
-											:problem tsumo-ron)))))
+											:value tsumo-ron
+											"Not \"tsumo\" or \"ron\"")))))
 		   )
-	  (multiple-value-bind (free-tiles locked-sets) (parse-tiles seq)
+	  (multiple-value-bind (free-tiles locked-sets)
+		(handler-case (parse-tiles seq)
+		  (invalid-set (c) (error 'invalid-hand-element :element "set"
+								  :value (invalid-set-list c)
+								  :problem (invalid-set-reason c)))
+		  (invalid-tile (c) (error 'invalid-hand-element :element "tile"
+								   :value (invalid-tile-symbol c))))
 		(cond ((not (or free-tiles locked-sets))
 			   (error 'invalid-hand :reason "No tiles specified."))
 			  ((not free-tiles)
@@ -1155,6 +1193,8 @@
 		finally (return (nreverse formatted))))
 
 
+(define-condition no-yaku (error) ())
+
 (defun format-scoring (hand scoring)
   (flet ((r (payment) (round-up-to 100 payment)))
 	(let* ((han (scoring-han scoring))
@@ -1170,12 +1210,12 @@
 		   (payments (cond ((and east-win self-draw) (format nil "Everyone pays ~d." (r east)))
 						   (self-draw (format nil "East pays ~d, others pay ~d." (r east) (r other)))
 						   (t (format nil "Discarder pays ~d." (r (cond (east-win (* 3 east))
-																		(t (+ east (* 2 other))))))))))
-
-	  (if (equal han 0)
-		"No yaku."
-		(format nil "~@(~a~)~%~{~&~(~a~)~}~%~a" han-fu
-				(format-hans (scoring-yakus scoring)) payments)))))
+																		(t (+ east (* 2 other)))))))))
+		   (output (format nil "~@(~a~)~%~{~&~(~a~)~}~%~a" han-fu
+						   (format-hans (scoring-yakus scoring)) payments)))
+	  (when (equal 0 han) (restart-case (error 'no-yaku)
+							(return-text (text) (setf output text))))
+	  output)))
 
 (defun scoring-add-dora-han (scoring hits type)
   (scoring-add-han scoring hits (make-list hits :initial-element (list type 1))))
@@ -1245,8 +1285,9 @@
 (defun main ()
   (handler-bind
 	((invalid-hand (lambda (c) (return-text (format nil "Invalid hand: ~a" (reason c)))))
+	 (no-yaku (lambda (c) (return-text (format nil "No yaku."))))
 	 (end-of-file #'terminate)
-	 (error (lambda (c) (return-text (format nil "Unexpected error." c))))
+	 (error (lambda (c) (return-text (format nil "Unexpected error: ~a" c))))
 	 )
 	(loop for line = (restart-case (read-line)
 					   (use-value (value) value)
