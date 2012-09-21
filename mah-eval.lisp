@@ -92,6 +92,8 @@
 
 (defgeneric tile-consec (tile1 tile2 &key wrap-around))
 
+(defgeneric format-tile (tile))
+
 (defun tile-equal-all (tiles)
   (if tiles
 	(all (lambda (other-tile) (tile-equal (first tiles) other-tile)) tiles)
@@ -150,11 +152,11 @@
    (rank :initarg :rank
 		 :reader rank)))
 
-;(defmethod print-object ((tile suited-tile) stream)
-;  (when *print-readably* (error 'print-not-readable :object tile))
-; (format stream "#<~C~d>"
-;		  (table-a-with-b *suit-table* (suit tile))
-;		  (rank tile)))
+(defmethod print-object ((tile suited-tile) stream)
+  (when *print-readably* (error 'print-not-readable :object tile))
+ (format stream "#<~C~d>"
+		  (table-a-with-b *suit-table* (suit tile))
+		  (rank tile)))
 
 (defmethod suited-p ((tile suited-tile))
   t)
@@ -190,6 +192,9 @@
 			  (next-rank (if (and wrap-around (= 9 rank)) 1 (1+ rank))))
 		 (of-rank next-rank t2))))
 
+(defmethod format-tile ((tile suited-tile))
+ (format nil "~c~d" (table-a-with-b *suit-table* (suit tile)) (rank tile)))
+
 
 (defclass honor-tile (tile)
   ((kind :initarg :kind
@@ -220,6 +225,9 @@
 		(pos-b (position-b (kind b) *honor-table*)))
 	(< pos-a pos-b)))
 
+(defmethod format-tile ((tile honor-tile))
+ (table-a-with-b *honor-table* (kind tile)))
+
 (define-condition item-not-in-table (condition) ((item :initarg item)))
 
 (defun next-with-rollover (item table)
@@ -249,6 +257,9 @@
 
 (defmethod tile-less ((a suited-tile) (b honor-tile)) t)
 (defmethod tile-less ((a honor-tile) (b suited-tile)) nil)
+
+(defmacro set-open-closed (set)
+  `(first ,set))
 
 
 (defstruct hand
@@ -313,6 +324,9 @@
 	(when (and (equal :open open-or-closed) (equal 'pair type))
 	  (error 'invalid-set :list seq :reason "A pair cannot be open."))
 	(append (list open-or-closed type) tiles)))
+
+(defun format-set (set)
+ (format nil "(~(~a ~a~)~{ ~a~})" (set-open-closed set) (set-type set) (mapcar #'format-tile (set-tiles set))))
 
 
 (define-condition invalid-hand (error)
@@ -466,9 +480,6 @@
 (define-condition unknown-kind-of-set (error)
   ((kind :initarg kind)))
 
-(defmacro set-open-closed (set)
-  `(first ,set))
-
 (defun set-open-closed-p (open-closed set)
   (if (equal open-closed :all)
 	t
@@ -583,15 +594,24 @@
 				  (new-yakus (nconc (yakulist-yakus a) (yakulist-yakus b))))
 			  (cons new-han new-yakus)))))
 
+(defstruct scoring
+ ord
+ han
+ fu
+ yakus)
 
-(defmacro scoring-han (scoring)
-  `(first ,scoring))
-
-(defmacro scoring-fu (scoring)
-  `(second ,scoring))
-
-(defmacro scoring-yakus (scoring)
-  `(cddr ,scoring))
+;(defmacro scoring-ord (scoring)
+; `(first ,scoring))
+; 
+;
+;(defmacro scoring-han (scoring)
+;  `(second ,scoring))
+;
+;(defmacro scoring-fu (scoring)
+;  `(third ,scoring))
+;
+;(defmacro scoring-yakus (scoring)
+;  `(cdddr ,scoring))
 
 (defun scoring-add-han (scoring han for &key prepend)
   (if (and (plusp han) for)
@@ -602,7 +622,7 @@
 		   (combined-yakus (if prepend
 							 (nconc new-yakus old-yakus)
 							 (nconc old-yakus new-yakus))))
-	  (list* combined-han (scoring-fu scoring) combined-yakus))
+	  (make-scoring :ord (scoring-ord scoring) :han combined-han :fu (scoring-fu scoring) :yakus combined-yakus))
 	scoring))
 
 (defun higher-scoring (&optional a b)
@@ -661,7 +681,7 @@
 							if (funcall yaku-p hand ord base-fu)
 							nconc it))
 		   (combined (reduce #'combine-yakulists all-yakus)))
-	  (list* (first combined) fu (rest combined)))))
+	  (make-scoring :ord ord :han (first combined) :fu fu :yakus (rest combined)))))
 
 
 
@@ -1198,7 +1218,8 @@
 
 (defun format-scoring (hand scoring)
   (flet ((r (payment) (round-up-to 100 payment)))
-	(let* ((han (scoring-han scoring))
+	(let* ((ord (scoring-ord scoring))
+		   (han (scoring-han scoring))
 		   (fu (scoring-fu scoring))
 		   (limit (limit han fu))
 		   (han-fu (if limit
@@ -1212,7 +1233,7 @@
 						   (self-draw (format nil "East pays ~d, others pay ~d." (r east) (r other)))
 						   (t (format nil "Discarder pays ~d." (r (cond (east-win (* 3 east))
 																		(t (+ east (* 2 other)))))))))
-		   (output (format nil "~@(~a~)~%~{~&~(~a~)~}~%~a" han-fu
+		   (output (format nil "~a~%~@(~a~)~%~{~&~(~a~)~}~%~a" (mapcar #'format-set ord) han-fu
 						   (format-hans (scoring-yakus scoring)) payments)))
 	  (when (equal 0 han) (restart-case (error 'no-yaku)
 							(return-text (text) (setf output text))))
