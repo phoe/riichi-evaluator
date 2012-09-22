@@ -416,14 +416,18 @@
 			   (closed (all #'set-closed-p locked-sets)))
 		  (when (and riichi (not closed))
 			(error 'invalid-hand :reason "Riichi with open hand"))
-		  (let ((tile-count (length tiles)))
+		  (let ((tile-count (+ (length free-tiles) ; NOTE: a kan is considered
+							 (loop for set in locked-sets ; to have 3 tiles
+							  sum (ecase (set-type set)
+								  ((chi pon kan) 3)
+								  ('pair 2))))))
 			(cond
 			  ((< tile-count 14)
 			   (error 'invalid-hand
 					  :reason (format nil "Too few tiles (~d)" tile-count)))
-			  ;((> tile-count 14)
-			  ; (error 'invalid-hand
-			;		  :reason (format nil "Too many tiles (~d)" tile-count)))
+			  ((> tile-count 14)
+			   (error 'invalid-hand
+					  :reason (format nil "Too many tiles (~d)" tile-count)))
 			 ))
 		  (make-hand :prevailing-wind prevailing-wind
 					 :seat-wind seat-wind
@@ -899,11 +903,13 @@
 	  (loop for i from 0 upto (- len 3)
 			for i-set = (elt sets i)
 			for i-rank = (set-rank i-set)
-			for suits = (loop for j from (1+ i) upto (1- len)
+			for i-suit = (set-suit i-set)
+			for suits = (loop for j from (1+ i) below len
 							  for j-set = (elt sets j)
 							  for j-rank = (set-rank j-set)
-							  if (= i-rank j-rank)
-							  collect (set-suit j-set))
+							  for j-suit = (set-suit j-set)
+							  if (and (= i-rank j-rank) (not (equal i-suit j-suit)))
+							  collect j-suit)
 			for diff-suits = (delete-duplicates suits)
 			;do (format t "Suits: ~a, Diff-suits: ~a~%" suits diff-suits)
 			thereis (= 2 (length diff-suits))))))
