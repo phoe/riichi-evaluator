@@ -1324,7 +1324,6 @@
 		;do (format t "~a~%" raw-hand)
 		do (format t "~a~%~%" (format-scoring hand (score hand)))))
 
-(main)
 ;(test-hands)
 
 ;do (format t "~a~%" (sub-paths hand))
