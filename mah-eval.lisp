@@ -809,7 +809,7 @@
 ;(define-sames-pattern single 1)
 (define-sames-pattern pair 2)
 (define-sames-pattern pon 3)
-(define-sames-pattern kan 4)
+;(define-sames-pattern kan 4)
 
 (defun remove-nth (n seq)
   (remove-if (lambda (x) t) seq :start n :count 1))
