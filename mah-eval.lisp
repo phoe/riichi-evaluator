@@ -127,7 +127,7 @@
 
 (defmethod print-object ((tile honor-tile) stream)
   (print-unreadable-object (tile stream :type nil :identity nil)
-    (format stream "#<~C>"
+    (format stream "~C"
             (a:rassoc-value *honor-table* (kind tile)))))
 
 (defmethod honor-p ((tile honor-tile))
@@ -167,21 +167,6 @@
 
 (defmethod tile< ((a suited-tile) (b honor-tile)) t)
 (defmethod tile< ((a honor-tile) (b suited-tile)) nil)
-
-;;; Hand
-
-(defclass hand ()
-  ((prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
-   (seat-wind :accessor seat-wind :initarg :seat-wind)
-   (self-draw :accessor self-draw :initarg :self-draw)
-   (winning-tile :accessor winning-tile :initarg :winning-tile)
-   (tiles :accessor tiles :initarg :tiles)
-   (locked-sets :accessor locked-sets :initarg :locked-sets)
-   (free-tiles :accessor free-tiles :initarg :free-tiles)
-   (closed :accessor closed :initarg :closed)
-   (riichi :accessor riichi :initarg :riichi)
-   (doras :accessor doras :initarg :doras)
-   (ura-doras :accessor ura-doras :initarg :ura-doras)))
 
 ;; Tile parser
 
@@ -264,7 +249,8 @@
             :reader invalid-hand-element-problem)))
 
 (defmethod reason ((c invalid-hand-element))
-  (format nil "Invalid ~a ~a~:[~;: ~:*~a~]." (invalid-hand-element-element c)
+  (format nil "Invalid ~a ~a~:[~;: ~:*~a~]."
+          (invalid-hand-element-element c)
           (with-output-to-string (out) (princ (invalid-hand-element-value c) out))
           (invalid-hand-element-problem c)))
 
@@ -284,6 +270,33 @@
     (type-error (c) (error 'invalid-hand-element
                            :element (format nil "~a list" which)
                            :value (type-error-datum c)))))
+
+;;; Hand
+
+(defclass hand ()
+  ((prevailing-wind :accessor hand-prevailing-wind :initarg :prevailing-wind)
+   (seat-wind :accessor hand-seat-wind :initarg :seat-wind)
+   (self-draw :accessor hand-self-draw :initarg :self-draw)
+   (winning-tile :accessor hand-winning-tile :initarg :winning-tile)
+   (tiles :accessor hand-tiles :initarg :tiles)
+   (locked-sets :accessor hand-locked-sets :initarg :locked-sets)
+   (free-tiles :accessor hand-free-tiles :initarg :free-tiles)
+   (closed :accessor hand-closed :initarg :closed)
+   (riichi :accessor hand-riichi :initarg :riichi)
+   (doras :accessor hand-doras :initarg :doras)
+   (ura-doras :accessor hand-ura-doras :initarg :ura-doras)))
+
+(defgeneric copy-hand (hand)
+  (:method ((hand hand))
+    (with-slots (prevailing-wind seat-wind self-draw winning-tile tiles
+                 locked-sets free-tiles closed riichi doras ura-doras)
+        hand
+      (make-instance
+       'hand
+       :prevailing-wind prevailing-wind :seat-wind seat-wind
+       :self-draw self-draw :winning-tile winning-tile
+       :tiles tiles :locked-sets locked-sets :free-tiles free-tiles
+       :closed closed :riichi riichi :doras doras :ura-doras ura-doras))))
 
 (defun parse-hand (seq)
   (labels ((error-ood (which)
@@ -345,17 +358,17 @@
                      :reason (format nil "Too ~A tiles (~d)"
                                      (if (< tile-count 14) "few" "many")
                                      tile-count))))
-          (make-hand :prevailing-wind prevailing-wind
-                     :seat-wind seat-wind
-                     :self-draw self-draw
-                     :winning-tile winning-tile
-                     :tiles (sort tiles #'tile<)
-                     :locked-sets locked-sets
-                     :free-tiles (sort free-tiles #'tile<)
-                     :closed closed
-                     :riichi riichi
-                     :doras doras
-                     :ura-doras ura-doras))))))
+          (make-instance 'hand :prevailing-wind prevailing-wind
+                               :seat-wind seat-wind
+                               :self-draw self-draw
+                               :winning-tile winning-tile
+                               :tiles (sort tiles #'tile<)
+                               :locked-sets locked-sets
+                               :free-tiles (sort free-tiles #'tile<)
+                               :closed closed
+                               :riichi riichi
+                               :doras doras
+                               :ura-doras ura-doras))))))
 
 ;;; Pattern matchers
 
@@ -422,6 +435,8 @@
           (winning-set (find-if (lambda (set) (find winning-tile (set-tiles set))) ,ord-name))
           (tiles (hand-tiles ,hand-name))
           (closed (hand-closed ,hand-name)))
+     (declare (ignorable prevailing-wind seat-wind self-draw winning-tile
+                         winning-set tiles closed))
      (labels ((lambda-p (open-closed types)
                 (lambda (set) (and (set-open-closed-p open-closed set)
                                    (find (set-type set) types))))
@@ -431,6 +446,7 @@
                 (count-if (lambda-p open-closed types) ,ord-name))
               (of-good-wind-p (tile)
                 (or (of-wind prevailing-wind tile) (of-wind seat-wind tile))))
+       (declare (ignorable #'sets #'count-sets #'of-good-wind-p))
        ,@forms)))
 
 (defun count-fu-melds (sets)
@@ -447,15 +463,16 @@
 
 (defun count-fu-waits (winning-set winning-tile)
   (case (set-type winning-set)
-    ('pair 2)                            ; pair wait
-    ('chi (let* ((tiles (set-tiles winning-set))
-                 (pos (position winning-tile tiles))
-                 (rank (set-rank winning-set)))
-            (ecase pos
-              (2 (if (= rank 1) 2 0))    ; edge wait     1   2  <3>
-              (1 2)                      ; closed wait
-              (0 (if (= rank 7) 2 0))))) ; edge wait    <7>  8   9
+    (pair 2)                            ; pair wait
+    (chi (let* ((tiles (set-tiles winning-set))
+                (pos (position winning-tile tiles))
+                (rank (set-rank winning-set)))
+           (ecase pos
+             (2 (if (= rank 1) 2 0))    ; edge wait     1   2  <3>
+             (1 2)                      ; closed wait
+             (0 (if (= rank 7) 2 0))))) ; edge wait    <7>  8   9
     (t 0)))
+
 (defun count-fu (hand ord)
   (with-hand-helpers hand ord
     (let ((pairs (sets :all 'pair)))
@@ -636,6 +653,7 @@
   `(progn
      (push
       (lambda (hand ord base-fu)
+        (declare (ignorable base-fu))
         (with-hand-helpers hand ord
           (when (progn ,@forms)
             (let ((han (if closed ,han-closed ,han-open)))
