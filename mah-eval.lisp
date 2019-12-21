@@ -170,18 +170,18 @@
 
 ;;; Hand
 
-(defstruct hand
-  prevailing-wind
-  seat-wind
-  self-draw
-  winning-tile
-  tiles
-  locked-sets
-  free-tiles
-  closed
-  riichi
-  doras
-  ura-doras)
+(defclass hand ()
+  ((prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
+   (seat-wind :accessor seat-wind :initarg :seat-wind)
+   (self-draw :accessor self-draw :initarg :self-draw)
+   (winning-tile :accessor winning-tile :initarg :winning-tile)
+   (tiles :accessor tiles :initarg :tiles)
+   (locked-sets :accessor locked-sets :initarg :locked-sets)
+   (free-tiles :accessor free-tiles :initarg :free-tiles)
+   (closed :accessor closed :initarg :closed)
+   (riichi :accessor riichi :initarg :riichi)
+   (doras :accessor doras :initarg :doras)
+   (ura-doras :accessor ura-doras :initarg :ura-doras)))
 
 ;; Tile parser
 
