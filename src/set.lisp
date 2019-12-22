@@ -22,6 +22,7 @@
 
 (defpackage #:riichi-evaluator.set
   (:use #:cl
+        #:riichi-evaluator.constants
         #:riichi-evaluator.tiles)
   (:local-nicknames (#:a #:alexandria)
                     (#:p #:protest/base))
@@ -29,18 +30,13 @@
 
 (in-package #:riichi-evaluator.set)
 
-;;; Data
-
-(defparameter *other-players*
-  '(:shimocha :toimen :kamicha))
-
 ;;; Conditions
 
 (define-condition invalid-set-element (type-error) ())
 
 (define-condition invalid-tile-taken-from (type-error) ())
 
-(define-condition open-tile-not-in-set ()
+(define-condition open-tile-not-in-set (error)
   ((%open-tile :reader open-tile :initarg :open-tile)
    (%tiles :reader tiles :initarg :tiles))
   (:default-initargs
@@ -51,7 +47,7 @@
      (format stream "Attempted to make a set whose open tile ~A is not in ~A."
              (open-tile condition) (tiles condition)))))
 
-(define-condition invalid-shuntsu ()
+(define-condition invalid-shuntsu (error)
   ((%tiles :reader tiles :initarg :tiles))
   (:default-initargs
    :tiles (a:required-argument :tiles))

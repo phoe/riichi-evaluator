@@ -21,51 +21,22 @@
 ;;;; DEALINGS IN THE SOFTWARE.
 
 (defpackage #:riichi-evaluator.tiles
-  (:use #:cl)
+  (:use #:cl
+        #:riichi-evaluator.constants)
   (:local-nicknames
    (#:a #:alexandria)
    (#:nr #:named-readtables)
    (#:p #:protest/base))
   (:export
-   ;; Variables
-   #:*suit-table* #:*wind-table* #:*dragon-table* #:*dragon-print-table*
-   #:*honor-table*
    ;; Tile protocol
    #:tile #:tile-p #:suited-p #:simple-p #:terminal-p #:honor-p #:wind-p #:dragon-p
    #:of-suit #:of-rank #:of-wind #:tile= #:tile-consec-p #:tile< #:format-tile
    ;; Conditions
    #:invalid-tile-datum
    ;; Concrete classes
-   #:suited-tile #:honor-tile
-   ))
+   #:suited-tile #:honor-tile))
 
 (in-package #:riichi-evaluator.tiles)
-
-;;; Tile tables
-
-(defparameter *suit-table*
-  '((#\M . :number)
-    (#\P . :circle)
-    (#\S . :bamboo)))
-
-(defparameter *wind-table*
-  '((#\E . :east)
-    (#\S . :south)
-    (#\W . :west)
-    (#\N . :north)))
-
-(defparameter *dragon-table*
-  '((#\B . :haku)
-    (#\F . :hatsu)
-    (#\C . :chun)))
-
-(defparameter *dragon-print-table*
-  '(("Hk" . :haku)
-    ("Ht" . :hatsu)
-    ("Ch" . :chun)))
-
-(defparameter *honor-table*
-  (append *wind-table* *dragon-table*))
 
 ;;; Tile protocol
 
