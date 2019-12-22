@@ -1,14 +1,37 @@
-;;; riichi-evaluator
-;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
+;;;; mah-eval.lisp
+;;;;
+;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
+;;;;
+;;;; Permission is hereby granted, free of charge, to any person obtaining a
+;;;; copy of this software and associated documentation files (the "Software"),
+;;;; to deal in the Software without restriction, including without limitation
+;;;; the rights to use, copy, modify, merge, publish, distribute, sublicense,
+;;;; and/or sell copies of the Software, and to permit persons to whom the
+;;;; Software is furnished to do so, subject to the following conditions:
+;;;;
+;;;; The above copyright notice and this permission notice shall be included in
+;;;; all copies or substantial portions of the Software.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+;;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+;;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+;;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+;;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;;;; DEALINGS IN THE SOFTWARE.
+
+(defpackage #:riichi-evaluator
+  (:use #:cl)
+  (:local-nicknames (#:a #:alexandria)))
 
 (in-package #:riichi-evaluator)
 
 ;;; Tile tables
 
 (defparameter *suit-table*
-  '((#\P . :circle)
-    (#\S . :bamboo)
-    (#\M . :number)))
+  '((#\M . :number)
+    (#\P . :circle)
+    (#\S . :bamboo)))
 
 (defparameter *wind-table*
   '((#\E . :east)
@@ -17,14 +40,19 @@
     (#\N . :north)))
 
 (defparameter *dragon-table*
-  '((#\C . :chun)
-    (#\B . :haku)
-    (#\F . :hatsu)))
+  '((#\B . :haku)
+    (#\F . :hatsu)
+    (#\C . :chun)))
+
+(defparameter *dragon-print-table*
+  '(("Hk" . :haku)
+    ("Ht" . :hatsu)
+    ("Ch" . :chun)))
 
 (defparameter *honor-table*
   (append *wind-table* *dragon-table*))
 
-;;; Protocol
+;;; Tile protocol
 
 (defclass tile () ())
 
@@ -62,7 +90,7 @@
 (defgeneric tile-equal (tile1 tile2)
   (:method ((tile1 tile) (tile2 tile)) nil))
 
-(defgeneric tile-consec (tile1 tile2 &key wrap-around)
+(defgeneric tile-consec-p (tile1 tile2 &key wrap-around)
   (:method ((tile1 tile) (tile2 tile) &key wrap-around)
     (declare (ignore wrap-around))
     nil))
@@ -80,10 +108,9 @@
          :reader rank)))
 
 (defmethod print-object ((tile suited-tile) stream)
-  (print-unreadable-object (tile stream :type nil :identity nil)
-    (format stream "~C~D"
-            (a:rassoc-value *suit-table* (suit tile))
-            (rank tile))))
+  (format stream "[~D~C]"
+          (rank tile)
+          (char-downcase (a:rassoc-value *suit-table* (suit tile)))))
 
 (defmethod suited-p ((tile suited-tile))
   t)
@@ -110,7 +137,7 @@
     (or (< pos-a pos-b)
         (and (= pos-a pos-b) (< (rank a) (rank b))))))
 
-(defmethod tile-consec ((t1 suited-tile) (t2 suited-tile) &key wrap-around)
+(defmethod tile-consec-p ((t1 suited-tile) (t2 suited-tile) &key wrap-around)
   (and (of-suit (suit t1) t2)
        (let* ((rank (rank t1))
               (next-rank (if (and wrap-around (= 9 rank)) 1 (1+ rank))))
@@ -125,11 +152,6 @@
   ((kind :initarg :kind
          :reader kind)))
 
-(defmethod print-object ((tile honor-tile) stream)
-  (print-unreadable-object (tile stream :type nil :identity nil)
-    (format stream "~C"
-            (a:rassoc-value *honor-table* (kind tile)))))
-
 (defmethod honor-p ((tile honor-tile))
   t)
 
@@ -138,6 +160,13 @@
 
 (defmethod dragon-p ((tile honor-tile))
   (position (kind tile) *dragon-table* :key #'cdr))
+
+(defmethod print-object ((tile honor-tile) stream)
+  (let ((text (cond ((wind-p tile)
+                     (a:rassoc-value *honor-table* (kind tile)))
+                    ((dragon-p tile)
+                     (a:rassoc-value *dragon-print-table* (kind tile))))))
+    (format stream "[~A]" text)))
 
 (defmethod of-wind (wind (tile honor-tile))
   (equal wind (kind tile)))
@@ -153,11 +182,11 @@
 (defmethod format-tile ((tile honor-tile))
   (a:rassoc-value *honor-table* (kind tile)))
 
-(defmethod tile-consec ((t1 honor-tile) (t2 honor-tile) &key wrap-around)
+(defmethod tile-consec-p ((t1 honor-tile) (t2 honor-tile) &key wrap-around)
   (flet ((next-with-rollover (item table)
            (a:if-let ((pos (position item table)))
              (elt table (mod (1+ pos) (length table)))
-             (return-from tile-consec nil))))
+             (return-from tile-consec-p nil))))
     (when wrap-around
       (let* ((table (cond ((wind-p t1) (mapcar #'cdr *wind-table*))
                           ((dragon-p t1) (mapcar #'cdr *dragon-table*))
@@ -165,8 +194,39 @@
              (succ (next-with-rollover (kind t1) table)))
         (equal succ (kind t2))))))
 
+;;; Sorting order for suited and honor tiles.
+
 (defmethod tile< ((a suited-tile) (b honor-tile)) t)
+
 (defmethod tile< ((a honor-tile) (b suited-tile)) nil)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;; Tile parser
 
@@ -175,23 +235,17 @@
            :reader invalid-tile-symbol)))
 
 (defun parse-tile (symbol)
-  (handler-case
-      (let ((text (string symbol)))
-        (ecase (length text)
-          (2 (let ((suit (or (a:assoc-value *suit-table* (char text 0))
-                             (error 'invalid-tile :symbol symbol)))
-                   (rank (or (digit-char-p (char text 1))
-                             (error 'invalid-tile :symbol symbol))))
-               (unless (<= 1 rank 9)
-                 (error 'invalid-tile :symbol symbol))
-               (make-instance 'suited-tile :suit suit :rank rank)))
-          (1 (let ((kind (or (a:assoc-value *honor-table* (char text 0))
-                             (error 'invalid-tile :symbol symbol))))
-               (make-instance 'honor-tile :kind kind)))))
-    (type-error () (error 'invalid-tile :symbol symbol))
-    ;; TODO check if we need the above HANDLER-BIND. Likely not, since we will
-    ;; write our own, JSON-based parser.
-    ))
+  (flet ((complain () (error 'invalid-tile :symbol symbol)))
+    (handler-case
+        (let ((text (string symbol)))
+          (case (length text)
+            (2 (make-instance 'suited-tile
+                              :suit (a:assoc-value *suit-table* (char text 0))
+                              :rank (digit-char-p (char text 1))))
+            (1 (make-instance 'honor-tile
+                              :kind (a:assoc-value *honor-table* (char text 0))))
+            (t (complain))))
+      (type-error () (complain)))))
 
 ;;; Set parser
 
@@ -204,10 +258,10 @@
 (defun parse-set (seq)
   (flet ((tile-equal-all (tiles)
            (every (a:curry #'tile-equal (first tiles)) (rest tiles)))
-         (tile-consec-all (tiles)
+         (tile-consec-p-all (tiles)
            (loop for (first second) on tiles
                  while first while second
-                 always (tile-consec first second))))
+                 always (tile-consec-p first second))))
     (let* ((match (case (first seq)
                     (open :open)
                     (closed :closed)
@@ -217,19 +271,19 @@
            (type (case (length tiles)
                    (2 'pair)
                    (3 (cond ((tile-equal-all tiles) 'pon)
-                            ((tile-consec-all tiles) 'chi)
+                            ((tile-consec-p-all tiles) 'chi)
                             (t 'unknown)))
                    (4 'kan)
                    (t 'unknown))))
       (case type
         ((pair pon kan)
          (unless (tile-equal-all tiles)
-           (error 'invalid-set :list seq :reason "All tiles are not the same")))
+           (error 'invalid-set :list seq :reason "The tiles are not the same.")))
         (chi
-         (unless (tile-consec-all tiles)
-           (error 'invalid-set :list seq :reason "Tiles are not consecutive")))
+         (unless (tile-consec-p-all tiles)
+           (error 'invalid-set :list seq :reason "Tiles are not consecutive.")))
         (t
-         (error 'invalid-set :list seq :reason "Not pair, chi, pon or kan")))
+         (error 'invalid-set :list seq :reason "Not pair, chi, pon or kan.")))
       (when (and (equal :open open-or-closed) (equal 'pair type))
         (error 'invalid-set :list seq :reason "A pair cannot be open."))
       (list* open-or-closed type tiles))))
@@ -302,12 +356,10 @@
   (labels ((error-ood (which)
              (error 'invalid-hand
                     :reason (format nil "Ran out of data before ~a" which)))
-           (peek (which) (if seq
-                             (first seq)
-                             (error-ood which)))
-           (next (which) (if seq
-                             (pop seq)
-                             (error-ood which)))
+           (peek (which)
+             (if seq (first seq) (error-ood which)))
+           (next (which)
+             (if seq (pop seq) (error-ood which)))
            (read-wind (which) (let ((wind (next which)))
                                 (case wind
                                   ((east e) :east)
@@ -329,7 +381,7 @@
                           (t (error 'invalid-hand-element
                                     :element "tsumo/ron indicator"
                                     :value tsumo-ron
-                                    "Not \"tsumo\", \"t\", \"ron\" or \"r\""))))))
+                                    :problem "Not \"tsumo\", \"t\", \"ron\" or \"r\""))))))
       (multiple-value-bind (free-tiles locked-sets)
           (handler-case (parse-tiles seq)
             (invalid-set (c) (error 'invalid-hand-element :element "set"
@@ -497,15 +549,14 @@
 (defun full-ord (path locked-sets)
   (append locked-sets path))
 
-(defun either (a b target)
-  (or (equal a target) (equal b target)))
-
 (defun combine-han (a b)
-  (cond
-    ((either a b :double-yakuman) :double-yakuman)
-    ((either a b :yakuman) :yakuman)
-    ((> (+ a b) 13) 13) ; limit han at 13
-    (t (+ a b))))
+  (flet ((either (a b target)
+           (or (equal a target) (equal b target))))
+    (cond
+      ((either a b :double-yakuman) :double-yakuman)
+      ((either a b :yakuman) :yakuman)
+      ((> (+ a b) 13) 13) ; limit han at 13
+      (t (+ a b)))))
 
 (defun combine-yakulists (&optional a b)
   (flet ((yakulist-han (yakulist) (first yakulist))
@@ -568,14 +619,10 @@
         do (format t "~(~a~): ~(~a~) closed~[~:;, ~(~a~) open~]~%"
                    name han-closed (if (equal 0 han-open) 0 1) han-open)))
 
-
-(defun count-dora-hits (dora tiles)
-  (count-if (lambda (tile) (tile-consec dora tile :wrap-around t)) tiles))
-
 (defun count-doras-hits (doras tiles)
-  (loop for dora in doras
-        sum (count-dora-hits dora tiles)))
-
+  (flet ((count-dora-hits (dora tiles)
+           (count-if (lambda (tile) (tile-consec-p dora tile :wrap-around t)) tiles)))
+    (loop for dora in doras sum (count-dora-hits dora tiles))))
 
 (defun eval-ordering (hand ord)
   (multiple-value-bind (fu base-fu) (count-fu hand ord)
@@ -612,14 +659,14 @@
          (possible-winning
            (loop for set in unlocked-sets
                  for tile = (find winning-tile (set-tiles set) :test #'tile-equal)
-                 if tile collect (list set tile)))
-         )
+                 if tile collect (list set tile))))
     (loop for (win-set win-tile) in possible-winning
           for alt-hand = (copy-hand hand)
           for alt-ord = (loop for set in ord
                               for alt-set = (copy-list set)
                               if (and (not self-draw)
-                                      (eq win-set set)) do (setf (set-open-closed alt-set) :open)
+                                      (eq win-set set))
+                                do (setf (set-open-closed alt-set) :open)
                               collect alt-set)
           do (setf (hand-winning-tile alt-hand) win-tile)
           collect (list alt-hand alt-ord win-set))))
@@ -641,10 +688,7 @@
                                              hand qualified-partial-ord full-ord)
                   collect (eval-ordering alt-hand alt-ord))
             into scorings
-          finally (return (restart-case (or scorings
-                                            (error 'no-mahjong))
-                            (use-value (value) value))))))
-
+          finally (return (or scorings (error 'no-mahjong))))))
 
 (defun add-yaku-to-list (name han-closed han-open)
   (push (list name han-closed han-open) *yaku-list*))
@@ -666,6 +710,7 @@
 (defmacro define-multi-yaku (&rest forms)
   `(push
     (lambda (hand ord base-fu)
+      (declare (ignorable base-fu))
       (remove nil (with-hand-helpers hand ord
                     ,@forms)))
     *yaku-matchers*))
@@ -681,6 +726,7 @@
 ;; pat: a matched pattern or nil if no match
 ;; new-tiles: a list of remaining tiles or amount of tiles to be consumed
 (defmacro define-pattern (name min-length &rest forms)
+  (declare (ignore name))
   `(push (lambda (tiles)
            (when (>= (length tiles) ,min-length)
              ,@forms))
@@ -691,9 +737,7 @@
     (case len
       (0 (error 'no-tiles))
       (1 1)
-      (t
-       (or (position (first tiles) tiles :test-not #'tile-equal)
-           len)))))
+      (t (or (position (first tiles) tiles :test-not #'tile-equal) len)))))
 
 (defmacro define-sames-pattern (name length)
   `(define-pattern ,name ,length
@@ -701,13 +745,11 @@
          (values (cons ',name (subseq tiles 0 ,length)) ,length)
          (values nil 0))))
 
-;; (define-sames-pattern single 1)
 (define-sames-pattern pair 2)
 (define-sames-pattern pon 3)
-;; (define-sames-pattern kan 4)
 
 (defun remove-nth (n seq)
-  (remove-if (lambda (x) t) seq :start n :count 1))
+  (remove-if (constantly t) seq :start n :count 1))
 
 ;; Returns two values; the second is what was found and removed, nil if none.
 (defun remove-if-exists (item seq test)
@@ -729,7 +771,7 @@
       (values (list) tiles)))
 
 (defun find-straight (tiles max-length)
-  (find-matching (lambda (t1 t2) (and (suited-p t2) (tile-consec t1 t2))) tiles max-length))
+  (find-matching (lambda (t1 t2) (and (suited-p t2) (tile-consec-p t1 t2))) tiles max-length))
 
 (defmacro define-straight-pattern (name len)
   `(define-pattern ,name ,len
@@ -742,7 +784,8 @@
 
 (define-pattern twelve-singles 12
   (multiple-value-bind (found skipped)
-      (find-matching (lambda (t1 t2) (= 1 (count t2 tiles :test #'tile-equal)))
+      (find-matching (lambda (t1 t2) (declare (ignore t1))
+                       (= 1 (count t2 tiles :test #'tile-equal)))
                      tiles
                      12)
     (if (= 12 (length found))
@@ -818,14 +861,13 @@
 (defun all-kinds-of-type (predicate amount sets)
   (all-of predicate #'set-kind amount sets))
 
-(defgeneric green-p (tile))
-(defmethod green-p ((tile tile))
-  nil)
-(defmethod green-p ((tile suited-tile))
-  (and (equal :bamboo (suit tile))
-       (find (rank tile) '(2 3 4 6 8))))
-(defmethod green-p ((tile honor-tile))
-  (equal :hatsu (kind tile)))
+(defgeneric green-p (tile)
+  (:method ((tile tile)) nil)
+  (:method ((tile suited-tile))
+    (and (equal :bamboo (suit tile))
+         (find (rank tile) '(2 3 4 6 8))))
+  (:method ((tile honor-tile))
+    (equal :hatsu (kind tile))))
 
 (defun all-of-same-suit (tiles)
   (let ((first-suited (find-if #'suited-p tiles)))
@@ -866,8 +908,6 @@
           thereis (and (find-if (lambda-set-of-suit suit) middles)
                        (find-if (lambda-set-of-suit suit) tops))))
 
-
-                                        ; fanpai
 (loop for type in (list* :prevailing-wind :seat-wind (mapcar #'cdr *dragon-table*))
       for yaku-name = (format nil "FANPAI-~a" type)
       do (add-yaku-to-list (intern yaku-name) 1 1))
@@ -889,7 +929,8 @@
                                                wind-types
                                                (nconc dragon-types wind-types))))
                             (loop for type in all-types
-                                  collect (list 1 (list (intern (format nil "FANPAI-~a" type)) 1)))))))
+                                  collect (list 1 (list (intern (format nil "FANPAI-~a" type))
+                                                        1)))))))
 
 (defun terminals-and-honors (tiles)
   (and (not (some #'simple-p tiles))
