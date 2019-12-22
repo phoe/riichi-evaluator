@@ -1,4 +1,4 @@
-;;;; constants.lisp
+;;;; src/constants.lisp
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -44,6 +44,7 @@
     (#\F . :hatsu)
     (#\C . :chun)))
 
+;; TODO move this into methods instead
 (defparameter *dragon-print-table*
   '(("Hk" . :haku)
     ("Ht" . :hatsu)

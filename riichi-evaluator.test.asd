@@ -1,4 +1,4 @@
-;;;; test/package.lisp
+;;;; riichi-evaluator.test.asd
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -20,10 +20,19 @@
 ;;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ;;;; DEALINGS IN THE SOFTWARE.
 
-(defpackage #:riichi-evaluator.test
-  (:local-nicknames (#:rt #:riichi-evaluator.tiles)
-                    (#:rs #:riichi-evaluator.set)
-                    (#:rh #:riichi-evaluator.hand)
-                    (#:nr #:named-readtables))
-  (:use #:cl
-        #:parachute))
+(asdf:defsystem #:riichi-evaluator.test
+  :description "Tests for Riichi Mahjong evaluator"
+  :author "Kimmo \"keko\" Kenttälä and Michał \"phoe\" Herda"
+  :maintainer "Michał \"phoe\" Herda <phoe@disroot.org>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :pathname "test"
+  :depends-on (#:alexandria
+               #:parachute
+               #:named-readtables)
+  :components ((:file "package")
+               (:file "tiles")
+               ;; (:file "set")
+               ;; (:file "hand")
+               ))

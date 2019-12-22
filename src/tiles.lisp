@@ -1,4 +1,4 @@
-;;;; tiles.lisp
+;;;; src/tiles.lisp
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -29,8 +29,9 @@
    (#:p #:protest/base))
   (:export
    ;; Tile protocol
-   #:tile #:tile-p #:suited-p #:simple-p #:terminal-p #:honor-p #:wind-p #:dragon-p
-   #:of-suit #:of-rank #:of-wind #:tile= #:tile-consec-p #:tile< #:format-tile
+   #:tile #:tile-p #:suited-p #:simple-p #:terminal-p #:honor-p #:wind-p
+   #:dragon-p #:of-suit #:of-rank #:of-wind #:of-dragon #:tile= #:tile-consec-p
+   #:tile< #:suit #:rank #:kind
    ;; Conditions
    #:invalid-tile-datum
    ;; Concrete classes
@@ -73,6 +74,9 @@
 (defgeneric of-wind (wind tile)
   (:method (wind (tile tile)) nil))
 
+(defgeneric of-dragon (dragon tile)
+  (:method (dragon (tile tile)) nil))
+
 (defgeneric tile= (tile1 tile2)
   (:method ((tile1 tile) (tile2 tile)) nil))
 
@@ -82,8 +86,6 @@
     nil))
 
 (defgeneric tile< (tile1 tile2))
-
-(defgeneric format-tile (tile))
 
 ;;; Conditions
 
@@ -116,7 +118,7 @@
   t)
 
 (defmethod terminal-p ((tile suited-tile))
-  (member (rank tile) '(1 9)))
+  (member (rank tile) '(1 9) :test #'=))
 
 (defmethod simple-p ((tile suited-tile))
   (not (terminal-p tile)))
@@ -142,9 +144,6 @@
        (let* ((rank (rank t1))
               (next-rank (if (and wrap-around (= 9 rank)) 1 (1+ rank))))
          (of-rank next-rank t2))))
-
-(defmethod format-tile ((tile suited-tile))
-  (format nil "~c~d" (a:rassoc-value *suit-table* (suit tile)) (rank tile)))
 
 ;;; Honor tile
 
@@ -177,6 +176,9 @@
 (defmethod of-wind (wind (tile honor-tile))
   (equal wind (kind tile)))
 
+(defmethod of-dragon (dragon (tile honor-tile))
+  (equal dragon (kind tile)))
+
 (defmethod tile= ((a honor-tile) (b honor-tile))
   (equal (kind a) (kind b)))
 
@@ -184,9 +186,6 @@
   (let ((pos-a (position (kind a) *honor-table* :key #'cdr))
         (pos-b (position (kind b) *honor-table* :key #'cdr)))
     (< pos-a pos-b)))
-
-(defmethod format-tile ((tile honor-tile))
-  (a:rassoc-value *honor-table* (kind tile)))
 
 (defmethod tile-consec-p ((t1 honor-tile) (t2 honor-tile) &key wrap-around)
   (flet ((next-with-rollover (item table)
@@ -207,17 +206,27 @@
 
 ;;; Tile list printer.
 
-;; (defun format-tile-list (tiles)
-;;   (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
-;;         for current-suit = 
-;;         for tile in sorted-tiles))
+(defparameter *print-tile-list-map*
+  '((:number . #\m)
+    (:circle . #\p)
+    (:bamboo . #\s)
+    (:honor . #\z)))
+
+(defun print-tile-list (tiles)
+  (with-output-to-string (stream)
+    (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
+          with last-suit = (suit (first sorted-tiles))
+          for tile in sorted-tiles
+          for rank = (if (suited-p tile) (rank tile)
+                         (1+ (position (kind tile) *honor-table* :key #'cdr)))
+          for suit = (if (suited-p tile) (suit tile) :honor)
+          unless (eq suit last-suit)
+            do (princ (a:assoc-value *print-tile-list-map* last-suit) stream)
+               (setf last-suit suit)
+          do (princ rank stream)
+          finally (princ (a:assoc-value *print-tile-list-map* suit) stream))))
 
 ;;; Lisp reader for tiles.
-
-(nr:defreadtable :riichi-evaluator
-  (:merge :standard))
-
-(nr:in-readtable :riichi-evaluator)
 
 (defun tile-reader (stream char)
   (declare (ignore char))
@@ -258,6 +267,7 @@
       (check-final-char)
       result)))
 
-(set-macro-character #\[ 'tile-reader nil (nr:find-readtable :riichi-evaluator))
-
-(set-macro-character #\] (get-macro-character #\)) nil (nr:find-readtable :riichi-evaluator))
+(nr:defreadtable :riichi-evaluator
+  (:merge :standard)
+  (:macro-char #\[ 'tile-reader)
+  (:macro-char #\] (get-macro-character #\))))
