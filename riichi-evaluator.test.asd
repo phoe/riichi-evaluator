@@ -30,7 +30,8 @@
   :pathname "test"
   :depends-on (#:alexandria
                #:parachute
-               #:named-readtables)
+               #:named-readtables
+               #:riichi-evaluator)
   :components ((:file "package")
                (:file "tiles")
                ;; (:file "set")

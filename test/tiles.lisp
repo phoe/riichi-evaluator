@@ -22,7 +22,7 @@
 
 (in-package #:riichi-evaluator.test)
 
-;;; Suited tiles
+;;; Data and helper macros
 
 (defparameter *allowed-ranks* (alexandria:iota 9 :start 1))
 (defparameter *allowed-suits* '(:number :circle :bamboo))
@@ -37,6 +37,14 @@
        (declare (ignorable ,rank))
        (let ((,tile (make-instance 'rt:suited-tile :rank ,rank :suit ,suit)))
          ,@body))))
+
+(defmacro with-all-honor-tiles ((kind tile) &body body)
+  `(dolist (,kind *allowed-honors*)
+     (declare (ignorable ,kind))
+     (let ((,tile (make-instance 'rt:honor-tile :kind ,kind)))
+       ,@body)))
+
+;;; Suited tiles
 
 (define-test suited-tiles-ok
   (with-all-suited-tiles (rank suit tile)
@@ -91,12 +99,6 @@
         (false (rt:tile-consec-p tile-1 tile-2 :wrap-around nil))))))
 
 ;;; Honor tiles
-
-(defmacro with-all-honor-tiles ((kind tile) &body body)
-  `(dolist (,kind *allowed-honors*)
-     (declare (ignorable ,kind))
-     (let ((,tile (make-instance 'rt:honor-tile :kind ,kind)))
-       ,@body)))
 
 (define-test honor-tiles-ok
   (with-all-honor-tiles (kind tile)
@@ -162,7 +164,7 @@
       (false (rt:tile-consec-p suited-tile honor-tile :wrap-around nil))
       (false (rt:tile-consec-p suited-tile honor-tile :wrap-around t)))))
 
-;;; Lisp reader
+;;; Tile and tile list printer and reader
 
 (defparameter *tile-reader-data*
   "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
@@ -170,23 +172,34 @@
     [1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s] [9s]
     [E]  [S]  [W]  [N]  [Hk] [Ht] [Ch])")
 
-(define-test tile-reader
-  (let* ((tiles-1 (uiop:while-collecting (collect)
+(defparameter *tile-list-reader-data*
+  "123456789m123456789p123456789s1234567z")
+
+(defun tile-read-print-test (read-fn print-fn re-read-fn)
+  (let* ((*readtable* (nr:find-readtable :riichi-evaluator))
+         (tiles-1 (uiop:while-collecting (collect)
                     (with-all-suited-tiles (rank suit tile) (collect tile))
                     (with-all-honor-tiles (kind tile) (collect tile))))
-         (*readtable* (nr:find-readtable :riichi-evaluator))
-         (tiles-2 (read-from-string *tile-reader-data*)))
+         (tiles-2 (funcall read-fn)))
     (is = 34 (length tiles-2))
     (loop for tile-1 in tiles-1
           for tile-2 in tiles-2
           do (is rt:tile= tile-1 tile-2))
-    (let* ((string (with-output-to-string (stream) (print tiles-1 stream)))
-           (tiles-3 (read-from-string string)))
+    (let* ((string (funcall print-fn tiles-1))
+           (tiles-3 (funcall re-read-fn string)))
       (is = 34 (length tiles-3))
       (loop for tile-1 in tiles-1
             for tile-3 in tiles-3
             do (is rt:tile= tile-1 tile-3)))))
 
-;;; Tile list printer
+(define-test tile-reader
+  (tile-read-print-test
+   (lambda () (read-from-string *tile-reader-data*))
+   (lambda (tiles) (with-output-to-string (stream) (print tiles stream)))
+   (lambda (string) (read-from-string string))))
 
-
+(define-test tile-list-reader
+  (tile-read-print-test
+   (lambda () (rt:read-tile-list-from-string *tile-list-reader-data*))
+   (lambda (tiles) (rt:print-tile-list tiles nil))
+   (lambda (string) (rt:read-tile-list-from-string string))))

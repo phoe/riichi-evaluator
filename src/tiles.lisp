@@ -35,7 +35,10 @@
    ;; Conditions
    #:invalid-tile-datum
    ;; Concrete classes
-   #:suited-tile #:honor-tile))
+   #:suited-tile #:honor-tile
+   ;; Tile list reader
+   #:print-tile-list #:read-tile-list #:read-tile-list-from-string
+   ))
 
 (in-package #:riichi-evaluator.tiles)
 
@@ -198,35 +201,13 @@
              (succ (next-with-rollover (kind t1) table)))
         (equal succ (kind t2))))))
 
-;;; Sorting order for suited and honor tiles.
+;;; Sorting order for suited and honor tiles
 
 (defmethod tile< ((a suited-tile) (b honor-tile)) t)
 
 (defmethod tile< ((a honor-tile) (b suited-tile)) nil)
 
-;;; Tile list printer.
-
-(defparameter *print-tile-list-map*
-  '((:number . #\m)
-    (:circle . #\p)
-    (:bamboo . #\s)
-    (:honor . #\z)))
-
-(defun print-tile-list (tiles)
-  (with-output-to-string (stream)
-    (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
-          with last-suit = (suit (first sorted-tiles))
-          for tile in sorted-tiles
-          for rank = (if (suited-p tile) (rank tile)
-                         (1+ (position (kind tile) *honor-table* :key #'cdr)))
-          for suit = (if (suited-p tile) (suit tile) :honor)
-          unless (eq suit last-suit)
-            do (princ (a:assoc-value *print-tile-list-map* last-suit) stream)
-               (setf last-suit suit)
-          do (princ rank stream)
-          finally (princ (a:assoc-value *print-tile-list-map* suit) stream))))
-
-;;; Lisp reader for tiles.
+;;; Tile reader
 
 (defun tile-reader (stream char)
   (declare (ignore char))
@@ -271,3 +252,55 @@
   (:merge :standard)
   (:macro-char #\[ 'tile-reader)
   (:macro-char #\] (get-macro-character #\))))
+
+
+;;; Tile list reader and printer
+
+(defparameter *tile-list-map*
+  '((:number . #\m)
+    (:circle . #\p)
+    (:bamboo . #\s)
+    (:honor . #\z)))
+
+(defun read-tile-list-from-string (string)
+  (with-input-from-string (stream string)
+    (read-tile-list stream)))
+
+(defun read-tile-list (stream)
+  (loop for char = (peek-char nil stream nil nil t)
+        with ranks = '()
+        while (and char (alphanumericp char))
+        do (setf char (read-char stream t nil t))
+        if (digit-char-p char)
+          do (push (digit-char-p char) ranks)
+        else
+          nconc
+          (loop with suit = (a:rassoc-value *tile-list-map* char)
+                for rank in (nreverse ranks)
+                do (setf ranks '())
+                if (eq suit :honor)
+                  collect (let ((kind (cdr (nth (1- rank) *honor-table*))))
+                            (make-instance 'honor-tile :kind kind))
+                else
+                  collect (make-instance 'suited-tile :rank rank :suit suit))
+          into result
+        finally (return (sort result #'tile<))))
+
+(defun print-tile-list (tiles &optional (stream t))
+  (flet ((thunk (stream)
+           (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
+                 with last-suit = (suit (first sorted-tiles))
+                 for tile in sorted-tiles
+                 for rank = (if (suited-p tile) (rank tile)
+                                (1+ (position (kind tile) *honor-table*
+                                              :key #'cdr)))
+                 for suit = (if (suited-p tile) (suit tile) :honor)
+                 unless (eq suit last-suit)
+                   do (princ (a:assoc-value *tile-list-map* last-suit) stream)
+                      (setf last-suit suit)
+                 do (princ rank stream)
+                 finally (princ (a:assoc-value *tile-list-map* suit) stream))))
+    (case stream
+      ((t) (thunk *standard-output*))
+      ((nil) (with-output-to-string (stream) (thunk stream)))
+      (t (thunk stream)))))
