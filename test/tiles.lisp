@@ -22,32 +22,15 @@
 
 (in-package #:riichi-evaluator.test)
 
-;;; Data and helper macros
+;;; Protocol classes
 
-(defparameter *allowed-ranks* (alexandria:iota 9 :start 1))
-(defparameter *allowed-suits* '(:number :circle :bamboo))
-(defparameter *allowed-winds* '(:east :south :west :north))
-(defparameter *allowed-dragons* '(:haku :hatsu :chun))
-(defparameter *allowed-honors* (append *allowed-winds* *allowed-dragons*))
-
-(defmacro with-all-suited-tiles ((rank suit tile) &body body)
-  `(dolist (,suit *allowed-suits*)
-     (declare (ignorable ,suit))
-     (dolist (,rank *allowed-ranks*)
-       (declare (ignorable ,rank))
-       (let ((,tile (make-instance 'rt:suited-tile :rank ,rank :suit ,suit)))
-         ,@body))))
-
-(defmacro with-all-honor-tiles ((kind tile) &body body)
-  `(dolist (,kind *allowed-honors*)
-     (declare (ignorable ,kind))
-     (let ((,tile (make-instance 'rt:honor-tile :kind ,kind)))
-       ,@body)))
+(define-test tile-protocol
+  (fail (make-instance 'rt:tile) 'p:protocol-error))
 
 ;;; Suited tiles
 
 (define-test suited-tiles-ok
-  (with-all-suited-tiles (rank suit tile)
+  (do-all-suited-tiles (rank suit tile)
     (of-type rt:suited-tile tile)
     (true (rt:tile-p tile))
     (true (rt:suited-p tile))
@@ -76,8 +59,8 @@
     (is eq suit (rt:suit tile))))
 
 (define-test suited-tiles-tile=-tile<-tile-consec-p
-  (with-all-suited-tiles (rank-1 suit-1 tile-1)
-    (with-all-suited-tiles (rank-2 suit-2 tile-2)
+  (do-all-suited-tiles (rank-1 suit-1 tile-1)
+    (do-all-suited-tiles (rank-2 suit-2 tile-2)
       (if (and (eq suit-1 suit-2)
                (= rank-1 rank-2))
           (true (rt:tile= tile-1 tile-2))
@@ -98,10 +81,22 @@
         (true (rt:tile-consec-p tile-1 tile-2 :wrap-around t))
         (false (rt:tile-consec-p tile-1 tile-2 :wrap-around nil))))))
 
+(define-test suited-tile-negative
+  (flet ((try (rank suit)
+           (fail (make-instance 'rt:suited-tile :rank rank :suit suit)
+               'rt:invalid-tile-datum)))
+    (try 0 :bamboo)
+    (try 10 :bamboo)
+    (try :bamboo :bamboo)
+    (try "bamboo" :bamboo)
+    (try 1 :keyword)
+    (try 1 "keyword")
+    (try 1 0)))
+
 ;;; Honor tiles
 
 (define-test honor-tiles-ok
-  (with-all-honor-tiles (kind tile)
+  (do-all-honor-tiles (kind tile)
     (of-type rt:honor-tile tile)
     (true (rt:tile-p tile))
     (false (rt:suited-p tile))
@@ -129,8 +124,8 @@
     (is eq kind (rt:kind tile))))
 
 (define-test honor-tiles-tile=-tile<-tile-consec-p
-  (with-all-honor-tiles (kind-1 tile-1)
-    (with-all-honor-tiles (kind-2 tile-2)
+  (do-all-honor-tiles (kind-1 tile-1)
+    (do-all-honor-tiles (kind-2 tile-2)
       (if (eq kind-1 kind-2)
           (true (rt:tile= tile-1 tile-2))
           (false (rt:tile= tile-1 tile-2)))
@@ -151,11 +146,21 @@
           (false (rt:tile-consec-p tile-1 tile-2 :wrap-around t)))
       (false (rt:tile-consec-p tile-1 tile-2 :wrap-around nil)))))
 
+(define-test honor-tile-negative
+  (flet ((try (kind)
+           (fail (make-instance 'rt:honor-tile :kind kind)
+               'rt:invalid-tile-datum)))
+    (try 0)
+    (try "east")
+    (try "EAST")
+    (try '(1 2 3))
+    (try :keyword)))
+
 ;;; Mixed tiles
 
 (define-test mixed-tiles-tile=-tile<-tile-consec-p
-  (with-all-honor-tiles (kind honor-tile)
-    (with-all-suited-tiles (rank suit suited-tile)
+  (do-all-honor-tiles (kind honor-tile)
+    (do-all-suited-tiles (rank suit suited-tile)
       (false (rt:tile= honor-tile suited-tile))
       (true (rt:tile< suited-tile honor-tile))
       (false (rt:tile< honor-tile suited-tile))
@@ -164,7 +169,7 @@
       (false (rt:tile-consec-p suited-tile honor-tile :wrap-around nil))
       (false (rt:tile-consec-p suited-tile honor-tile :wrap-around t)))))
 
-;;; Tile and tile list printer and reader
+;;; Tile and tile list reader and printer
 
 (defparameter *tile-reader-data*
   "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
@@ -175,11 +180,17 @@
 (defparameter *tile-list-reader-data*
   "123456789m123456789p123456789s1234567z")
 
+(defparameter *make-tile-data*
+  '("1m" "2m" "3m" "4m" "5m" "6m" "7m" "8m" "9m"
+    "1p" "2p" "3p" "4p" "5p" "6p" "7p" "8p" "9p"
+    "1s" "2s" "3s" "4s" "5s" "6s" "7s" "8s" "9s"
+    "1z" "2z" "3z" "4z" "5z" "6z" "7z"))
+
 (defun tile-read-print-test (read-fn print-fn re-read-fn)
   (let* ((*readtable* (nr:find-readtable :riichi-evaluator))
          (tiles-1 (uiop:while-collecting (collect)
-                    (with-all-suited-tiles (rank suit tile) (collect tile))
-                    (with-all-honor-tiles (kind tile) (collect tile))))
+                    (do-all-suited-tiles (rank suit tile) (collect tile))
+                    (do-all-honor-tiles (kind tile) (collect tile))))
          (tiles-2 (funcall read-fn)))
     (is = 34 (length tiles-2))
     (loop for tile-1 in tiles-1
@@ -195,11 +206,17 @@
 (define-test tile-reader
   (tile-read-print-test
    (lambda () (read-from-string *tile-reader-data*))
-   (lambda (tiles) (with-output-to-string (stream) (print tiles stream)))
+   (lambda (tiles) (prin1-to-string tiles))
    (lambda (string) (read-from-string string))))
 
 (define-test tile-list-reader
   (tile-read-print-test
    (lambda () (rt:read-tile-list-from-string *tile-list-reader-data*))
+   (lambda (tiles) (rt:print-tile-list tiles nil))
+   (lambda (string) (rt:read-tile-list-from-string string))))
+
+(define-test make-tile
+  (tile-read-print-test
+   (lambda () (mapcar #'rt:make-tile *make-tile-data*))
    (lambda (tiles) (rt:print-tile-list tiles nil))
    (lambda (string) (rt:read-tile-list-from-string string))))

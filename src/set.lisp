@@ -25,18 +25,36 @@
         #:riichi-evaluator.constants
         #:riichi-evaluator.tiles)
   (:local-nicknames (#:a #:alexandria)
-                    (#:p #:protest/base))
-  (:shadow #:set))
+                    (#:p #:protest/base)
+                    (#:m #:closer-mop))
+  (:shadow #:set)
+  (:export
+   ;; Conditions
+   #:invalid-set-element #:invalid-tile-taken-from #:open-tile-not-in-set
+   #:invalid-shuntsu #:minjun-invalid-meld
+   #:set-reader-error #:offending-string
+   ;; Condition accessors
+   #:open-tile #:tiles #:taken-from
+   ;; Protocol
+   #:set #:set-count #:tiles #:same-tile-set
+   #:closed-set-mixin #:open-set-mixin #:taken-from
+   #:shuntsu #:toitsu #:koutsu #:kantsu #:set=
+   ;; Concrete classes
+   #:antoi #:mintoi #:anjun #:minjun #:ankou #:minkou
+   #:ankan #:daiminkan #:shouminkan
+   ;; Set reader and printer
+   #:print-set #:read-set #:read-set-from-string
+   ))
 
 (in-package #:riichi-evaluator.set)
 
 ;;; Conditions
 
-(define-condition invalid-set-element (type-error) ())
+(define-condition invalid-set-element (type-error riichi-evaluator-error) ())
 
-(define-condition invalid-tile-taken-from (type-error) ())
+(define-condition invalid-tile-taken-from (type-error riichi-evaluator-error) ())
 
-(define-condition open-tile-not-in-set (error)
+(define-condition open-tile-not-in-set (riichi-evaluator-error)
   ((%open-tile :reader open-tile :initarg :open-tile)
    (%tiles :reader tiles :initarg :tiles))
   (:default-initargs
@@ -47,20 +65,59 @@
      (format stream "Attempted to make a set whose open tile ~A is not in ~A."
              (open-tile condition) (tiles condition)))))
 
-(define-condition invalid-shuntsu (error)
-  ((%tiles :reader tiles :initarg :tiles))
+(define-condition invalid-shuntsu (riichi-evaluator-error)
+  ((%offending-tile :reader offending-tile :initarg :offending-tile))
   (:default-initargs
-   :tiles (a:required-argument :tiles))
+   :offending-tile (a:required-argument :offending-tile))
   (:report
    (lambda (condition stream)
-     (format stream "Attempted to make a shuntsu with non-consecutive tiles ~A."
-             (tiles condition)))))
+     (let* ((tile (offending-tile condition))
+            (error-type (if (suited-p tile) "lowest" "honor")))
+       (format stream "Attempted to make a shuntsu with ~A tile ~A."
+               error-type tile)))))
+
+(define-condition minjun-invalid-meld (riichi-evaluator-error)
+  ((%taken-from :reader taken-from :initarg :taken-from)
+   (%set :reader set :initarg :set))
+  (:default-initargs
+   :tiles (a:required-argument :tiles)
+   :set (a:required-argument :set))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to make a minjun ~A with tile taken from ~A ~
+                     instead of kami-cha."
+             (set condition) (taken-from condition)))))
+
+(define-condition set-reader-error (riichi-evaluator-error)
+  ((%offending-string :initarg :offending-string :accessor offending-string))
+  (:report (lambda (condition stream)
+             (format stream "Attempted to read an invalid set: ~S"
+                     (offending-string condition)))))
 
 ;;; Protocol
 
 (p:define-protocol-class set ()
-  ((%count :reader set-count :initarg :count))
-  (:default-initargs :count (a:required-argument :count)))
+  ((%count :reader set-count :initarg %count))
+  (:default-initargs %count (a:required-argument '%count)))
+
+(defgeneric tiles (set))
+
+(defgeneric set= (set-1 set-2)
+  (:method (set-1 set-2) nil))
+
+(defun print-set (set &optional (stream t))
+  (case stream
+    ((t) (print-set-using-class set *standard-output*))
+    ((nil) (with-output-to-string (stream) (print-set-using-class set stream)))
+    (t (print-set-using-class set stream))))
+
+(defgeneric print-set-using-class (set stream)
+  (:method :around (set stream) (call-next-method) set))
+
+(defmethod print-object ((set set) stream)
+  (print-unreadable-object (set stream :type nil :identity nil)
+    (format stream "~A " (type-of set))
+    (print-set set stream)))
 
 (p:define-protocol-class same-tile-set (set)
   ((%tile :reader same-tile-set-tile :initarg :tile))
@@ -72,62 +129,78 @@
     (unless (tile-p tile)
       (error 'invalid-set-element :datum tile :expected-type 'tile))))
 
-(defgeneric tiles (set)
-  (:method ((set same-tile-set))
-    (make-list (set-count set) :initial-element (same-tile-set-tile set))))
+(defmethod set= ((set-1 same-tile-set) (set-2 same-tile-set))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile= (same-tile-set-tile set-1) (same-tile-set-tile set-2))))
+
+(defmethod tiles ((set same-tile-set))
+  (make-list (set-count set) :initial-element (same-tile-set-tile set)))
 
 (p:define-protocol-class closed-set-mixin () ())
+
+(defmethod print-set-using-class ((set closed-set-mixin) stream)
+  (print-tile-list (tiles set) stream))
+
 (p:define-protocol-class open-set-mixin ()
-  ((%taken-from :reader open-set-taken-from :initarg :taken-from))
+  ((%taken-from :reader taken-from :initarg :taken-from))
   (:default-initargs
    :taken-from (a:required-argument :taken-from)))
 
+(defmethod print-set-using-class :after ((set open-set-mixin) stream)
+  (let* ((tile (first (tiles set)))
+         (suit (suit tile)))
+    (princ (a:assoc-value *tile-list-map* suit) stream)))
+
 (defmethod initialize-instance :after ((set open-set-mixin) &key)
-  (let ((taken-from (open-set-taken-from set)))
+  (let ((taken-from (taken-from set)))
     (unless (member taken-from *other-players*)
       (error 'invalid-tile-taken-from
              :datum taken-from
              :expected-type `(member ,*other-players*)))))
 
-(p:define-protocol-class shuntsu ()
-  ((%tiles :reader set-tiles :initarg :tiles))
-  (:default-initargs
-   :count 3
-   :tiles (a:required-argument :tiles)))
-
-(defmethod initialize-instance :after ((set shuntsu) &key)
-  (let ((tiles (tiles set)))
-    (dolist (tile tiles)
-      (unless (tile-p tile)
-        (error 'invalid-set-element :datum tile :expected-type 'tile)))
-    (setf (slot-value set '%tiles) (sort tiles #'tile<))
-    (destructuring-bind (tile-1 tile-2 tile-3) tiles
-      (unless (and (tile-consec-p tile-1 tile-2) (tile-consec-p tile-2 tile-3))
-        (error 'invalid-shuntsu :tiles tiles)))))
+(defun print-open-set (set stream if-kamicha if-toimen if-shimocha)
+  (let* ((rank (rank (first (tiles set))))
+         (tiles (subst rank :rank (case (taken-from set)
+                                    (:kamicha if-kamicha)
+                                    (:toimen if-toimen)
+                                    (:shimocha if-shimocha)))))
+    (format stream "~{~A~}" tiles)))
 
 (p:define-protocol-class toitsu (same-tile-set) ()
-  (:default-initargs :count 2))
+  (:default-initargs %count 2))
 (p:define-protocol-class koutsu (same-tile-set) ()
-  (:default-initargs :count 3))
+  (:default-initargs %count 3))
 (p:define-protocol-class kantsu (same-tile-set) ()
-  (:default-initargs :count 4))
+  (:default-initargs %count 4))
+
+(p:define-protocol-class shuntsu (set)
+  ((%lowest-tile :reader shuntsu-lowest-tile :initarg :lowest-tile))
+  (:default-initargs
+   %count 3
+   :lowest-tile (a:required-argument :lowest-tile)))
+
+(defmethod initialize-instance :after ((set shuntsu) &key)
+  (let ((tile (shuntsu-lowest-tile set)))
+    (unless (tile-p tile)
+      (error 'invalid-set-element :datum tile :expected-type 'tile))
+    (unless (and (suited-p tile) (<= (rank tile) 7))
+      (error 'invalid-shuntsu :offending-tile tile))))
+
+(defmethod tiles ((set shuntsu))
+  (let* ((tile-1 (shuntsu-lowest-tile set))
+         (suit (suit tile-1)) (rank (rank tile-1))
+         (tile-2 (make-instance 'suited-tile :suit suit :rank (+ 1 rank)))
+         (tile-3 (make-instance 'suited-tile :suit suit :rank (+ 2 rank))))
+    (list tile-1 tile-2 tile-3)))
+
+(defmethod set= ((set-1 shuntsu) (set-2 shuntsu))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile= (shuntsu-lowest-tile set-1) (shuntsu-lowest-tile set-2))))
 
 ;;; Concrete classes
 
 (defclass antoi (toitsu closed-set-mixin) ())
 (defclass mintoi (toitsu open-set-mixin) ())
-
-(defclass anjun (shuntsu closed-set-mixin) ())
-(defclass minjun (shuntsu open-set-mixin)
-  ((%open-tile :reader open-set-tile :initarg :open-tile))
-  (:default-initargs
-   :open-tile (a:required-argument :open-tile)))
-
-(defmethod initialize-instance :after ((set minjun) &key)
-  (let ((tile (open-tile set))
-        (tiles (tiles set)))
-    (unless (member tile tiles)
-      (error 'open-tile-not-in-set :open-tile tile :tiles tiles))))
 
 (defclass ankou (koutsu closed-set-mixin) ())
 (defclass minkou (koutsu open-set-mixin) ())
@@ -135,3 +208,252 @@
 (defclass ankan (kantsu closed-set-mixin) ())
 (defclass daiminkan (kantsu open-set-mixin) ())
 (defclass shouminkan (kantsu open-set-mixin) ())
+
+(defclass anjun (shuntsu closed-set-mixin) ())
+(defclass minjun (shuntsu open-set-mixin)
+  ((%open-tile :reader open-tile :initarg :open-tile))
+  (:default-initargs
+   :taken-from :kamicha ;; TODO test this default initarg
+   :open-tile (a:required-argument :open-tile)))
+
+(defmethod initialize-instance :after ((set minjun) &key)
+  (let ((tile (open-tile set)))
+    (unless (tile-p tile)
+      (error 'invalid-set-element :datum tile :expected-type 'tile))
+    (let ((tiles (tiles set)))
+      (unless (member tile tiles :test #'tile=)
+        (error 'open-tile-not-in-set :open-tile tile :tiles tiles))))
+  (let ((taken-from (taken-from set)))
+    (unless (eq :kamicha taken-from)
+      (error 'minjun-invalid-meld :taken-from taken-from :set set))))
+
+(defmethod set= ((set-1 minjun) (set-2 minjun))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile= (shuntsu-lowest-tile set-1) (shuntsu-lowest-tile set-2))
+       (tile= (open-tile set-1) (open-tile set-2))))
+
+;;; Set printer
+
+(defmethod print-set-using-class ((set mintoi) stream)
+  (let ((rank (rank (same-tile-set-tile set))))
+    (print-open-set set stream
+                    (list rank "*" rank)
+                    (list rank "*" rank "*")
+                    (list rank rank "*"))))
+
+(defmethod print-set-using-class ((set minkou) stream)
+  (let ((rank (rank (same-tile-set-tile set))))
+    (print-open-set set stream
+                    (list rank "*" rank rank)
+                    (list rank rank "*" rank)
+                    (list rank rank rank "*"))))
+
+(defmethod print-set-using-class ((set daiminkan) stream)
+  (let ((rank (rank (same-tile-set-tile set))))
+    (print-open-set set stream
+                    (list rank "*" rank rank rank)
+                    (list rank rank "*" rank rank)
+                    (list rank rank rank rank "*"))))
+
+(defmethod print-set-using-class ((set shouminkan) stream)
+  (let ((rank (rank (same-tile-set-tile set))))
+    (print-open-set set stream
+                    (list rank "*" rank "**" rank rank)
+                    (list rank rank "*" rank "**" rank)
+                    (list rank rank rank "*" rank "**"))))
+
+(defmethod print-set-using-class ((set minjun) stream)
+  (let* ((tiles (tiles set))
+         (open-tile (open-tile set))
+         (remaining-tiles (remove open-tile tiles :test #'tile=))
+         (ranks (mapcar #'rank (cons open-tile remaining-tiles))))
+    (destructuring-bind (rank-1 rank-2 rank-3) ranks
+      (print-open-set set stream
+                      (list rank-1 "*" rank-2 rank-3)
+                      (list rank-1 rank-2 "*" rank-3)
+                      (list rank-1 rank-2 rank-3 "*")))))
+
+;;; Set reader
+
+(defun read-set (stream)
+  (let ((string (loop for char = (peek-char t stream nil :eof t)
+                      while (or (alphanumericp char) (eql char #\*))
+                      collect char)))
+    (read-set-from-string string)))
+
+(defun read-set-from-string (string)
+  (flet ((complain () (error 'set-reader-error :offending-string string)))
+    (handler-case (or (try-read-set string) (complain))
+      (riichi-evaluator-error () (complain)))))
+
+(define-method-combination chained-or ()
+  ((methods *))
+  `(or ,@(mapcar #'(lambda (method) `(call-method ,method)) methods)))
+
+(defun try-read-make-tile (rank suit)
+  (if (eq suit :honor)
+      (make-instance 'honor-tile :kind (cdr (nth (1- rank) *honor-table*)))
+      (make-instance 'suited-tile :suit suit :rank rank)))
+
+(defmacro destructure-string (lambda-list string &body body)
+  `(when (= ,(length lambda-list) (length ,string))
+     (destructuring-bind ,lambda-list (coerce ,string 'list)
+       ,@body)))
+
+(defgeneric try-read-set (string)
+  (:method-combination chained-or))
+
+(defmethod try-read-set chained-or :antoi ((string string))
+  (destructure-string (c1 c2 c3) string
+    (a:when-let ((rank-1 (digit-char-p c1))
+                 (rank-2 (digit-char-p c2))
+                 (suit (a:rassoc-value *tile-list-map* c3)))
+      (when (= rank-1 rank-2)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'antoi :tile tile))))))
+
+(defmethod try-read-set chained-or :mintoi-kami-shimo-cha ((string string))
+  (destructure-string (c1 c2 c3 c4) string
+    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
+                                    ((char= #\* c3) :shimocha)))
+                  (rank-1 (digit-char-p c1))
+                  (rank-2 (case taken-from
+                            (:kamicha (digit-char-p c3))
+                            (:shimocha (digit-char-p c2))))
+                  (suit (a:rassoc-value *tile-list-map* c4)))
+      (when (= rank-1 rank-2)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'mintoi :tile tile
+                                 :taken-from taken-from))))))
+
+(defmethod try-read-set chained-or :mintoi-toimen ((string string))
+  (destructure-string (c1 c2 c3 c4 c5) string
+    (when (char= #\* c2 c4)
+      (a:when-let ((rank-1 (digit-char-p c1))
+                   (rank-2 (digit-char-p c3))
+                   (suit (a:rassoc-value *tile-list-map* c5)))
+        (when (= rank-1 rank-2)
+          (let ((tile (try-read-make-tile rank-1 suit)))
+            (make-instance 'mintoi :tile tile
+                                   :taken-from :toimen)))))))
+
+(defmethod try-read-set chained-or :ankou ((string string))
+  (destructure-string (c1 c2 c3 c4) string
+    (a:when-let ((rank-1 (digit-char-p c1))
+                 (rank-2 (digit-char-p c2))
+                 (rank-3 (digit-char-p c3))
+                 (suit (a:rassoc-value *tile-list-map* c4)))
+      (when (= rank-1 rank-2 rank-3)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'ankou :tile tile))))))
+
+(defmethod try-read-set chained-or :minkou ((string string))
+  (destructure-string (c1 c2 c3 c4 c5) string
+    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
+                                    ((char= #\* c3) :toimen)
+                                    ((char= #\* c4) :shimocha)))
+                  (rank-1 (digit-char-p c1))
+                  (rank-2 (case taken-from
+                            (:kamicha (digit-char-p c3))
+                            ((:toimen :shimocha) (digit-char-p c2))))
+                  (rank-3 (case taken-from
+                            ((:kamicha :toimen) (digit-char-p c4))
+                            (:shimocha (digit-char-p c3))))
+                  (suit (a:rassoc-value *tile-list-map* c5)))
+      (when (= rank-1 rank-2 rank-3)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'minkou :tile tile
+                                 :taken-from taken-from))))))
+
+(defmethod try-read-set chained-or :ankan ((string string))
+  (destructure-string (c1 c2 c3 c4 c5) string
+    (a:when-let ((rank-1 (digit-char-p c1))
+                 (rank-2 (digit-char-p c2))
+                 (rank-3 (digit-char-p c3))
+                 (rank-4 (digit-char-p c4))
+                 (suit (a:rassoc-value *tile-list-map* c5)))
+      (when (= rank-1 rank-2 rank-3 rank-4)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'ankan :tile tile))))))
+
+(defmethod try-read-set chained-or :daiminkan ((string string))
+  (destructure-string (c1 c2 c3 c4 c5 c6) string
+    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
+                                    ((char= #\* c3) :toimen)
+                                    ((char= #\* c5) :shimocha)))
+                  (rank-1 (digit-char-p c1))
+                  (rank-2 (case taken-from
+                            (:kamicha (digit-char-p c3))
+                            ((:toimen :shimocha) (digit-char-p c2))))
+                  (rank-3 (case taken-from
+                            ((:kamicha :toimen) (digit-char-p c4))
+                            (:shimocha (digit-char-p c3))))
+                  (rank-4 (case taken-from
+                            ((:kamicha :toimen) (digit-char-p c5))
+                            (:shimocha (digit-char-p c4))))
+                  (suit (a:rassoc-value *tile-list-map* c6)))
+      (when (= rank-1 rank-2 rank-3 rank-4)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'daiminkan :tile tile
+                                    :taken-from taken-from))))))
+
+(defmethod try-read-set chained-or :shouminkan ((string string))
+  (destructure-string (c1 c2 c3 c4 c5 c6 c7 c8) string
+    (a:when-let* ((taken-from (cond ((char= #\* c2 c4 c5) :kamicha)
+                                    ((char= #\* c3 c5 c6) :toimen)
+                                    ((char= #\* c4 c6 c7) :shimocha)))
+                  (rank-1 (digit-char-p c1))
+                  (rank-2 (case taken-from
+                            (:kamicha (digit-char-p c3))
+                            ((:toimen :shimocha) (digit-char-p c2))))
+                  (rank-3 (case taken-from
+                            (:kamicha (digit-char-p c6))
+                            (:toimen (digit-char-p c4))
+                            (:shimocha (digit-char-p c3))))
+                  (rank-4 (case taken-from
+                            ((:kamicha :toimen) (digit-char-p c7))
+                            (:shimocha (digit-char-p c5))))
+                  (suit (a:rassoc-value *tile-list-map* c8)))
+      (when (= rank-1 rank-2 rank-3 rank-4)
+        (let ((tile (try-read-make-tile rank-1 suit)))
+          (make-instance 'shouminkan :tile tile
+                                     :taken-from taken-from))))))
+
+(defmethod try-read-set chained-or :anjun ((string string))
+  (destructure-string (c1 c2 c3 c4) string
+    (a:when-let ((rank-1 (digit-char-p c1))
+                 (rank-2 (digit-char-p c2))
+                 (rank-3 (digit-char-p c3))
+                 (suit (a:rassoc-value *tile-list-map* c4)))
+      (unless (eq suit :honor)
+        (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
+                                      :suit suit :rank)
+                             (list rank-1 rank-2 rank-3))))
+          (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
+            (when (and (tile-consec-p tile-1 tile-2)
+                       (tile-consec-p tile-2 tile-3))
+              (let ((tile (make-instance 'suited-tile
+                                         :suit suit
+                                         :rank (min rank-1 rank-2 rank-3))))
+                (make-instance 'anjun :lowest-tile tile)))))))))
+
+(defmethod try-read-set chained-or :minjun ((string string))
+  (destructure-string (c1 c2 c3 c4 c5) string
+    (when (char= #\* c2)
+      (a:when-let ((rank-1 (digit-char-p c1))
+                   (rank-2 (digit-char-p c3))
+                   (rank-3 (digit-char-p c4))
+                   (suit (a:rassoc-value *tile-list-map* c5)))
+        (unless (eq suit :honor)
+          (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
+                                        :suit suit :rank)
+                               (list rank-1 rank-2 rank-3))))
+            (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
+              (when (and (tile-consec-p tile-1 tile-2)
+                         (tile-consec-p tile-2 tile-3))
+                (let ((open-tile (make-instance 'suited-tile
+                                                :suit suit
+                                                :rank rank-1)))
+                  (make-instance 'minjun :lowest-tile tile-1
+                                         :open-tile open-tile
+                                         :taken-from :kamicha))))))))))

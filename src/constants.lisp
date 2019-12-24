@@ -23,8 +23,11 @@
 (defpackage #:riichi-evaluator.constants
   (:use #:cl)
   (:export
+   ;; Variables
    #:*suit-table* #:*wind-table* #:*dragon-table* #:*dragon-print-table*
-   #:*honor-table* #:*other-players*))
+   #:*honor-table* #:*other-players* #:*tile-list-map*
+   ;; Conditions
+   #:riichi-evaluator-error))
 
 (in-package #:riichi-evaluator.constants)
 
@@ -55,3 +58,11 @@
 
 (defparameter *other-players*
   '(:shimocha :toimen :kamicha))
+
+(defparameter *tile-list-map*
+  '((:number . #\m)
+    (:circle . #\p)
+    (:bamboo . #\s)
+    (:honor . #\z)))
+
+(define-condition riichi-evaluator-error (error) ())

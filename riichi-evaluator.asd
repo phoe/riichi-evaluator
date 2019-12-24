@@ -30,7 +30,8 @@
   :pathname "src"
   :depends-on (#:alexandria
                #:named-readtables
-               #:protest/base)
+               #:protest/base
+               #:closer-mop)
   :components ((:file "constants")
                (:file "tiles")
                (:file "set")
