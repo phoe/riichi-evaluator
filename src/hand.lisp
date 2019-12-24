@@ -22,7 +22,10 @@
 
 (defpackage #:riichi-evaluator.hand
   (:use #:cl
-        #:riichi-evaluator.tiles)
+        #:riichi-evaluator.tiles
+        #:riichi-evaluator.set)
+  (:shadowing-import-from #:riichi-evaluator.set
+                          #:set)
   (:local-nicknames (#:a #:alexandria)
                     (#:p #:protest/base)))
 
@@ -44,17 +47,17 @@
    :free-tiles (a:required-argument :free-tiles)
    :dora-list (a:required-argument :dora-list)))
 
-(p:define-protocol-class tsumo-mixin () ())
-(p:define-protocol-class ron-mixin () ())
-(p:define-protocol-class open-hand-mixin () ())
-(p:define-protocol-class closed-hand-mixin ()
+(p:define-protocol-class tsumo-hand () ())
+(p:define-protocol-class ron-hand () ())
+(p:define-protocol-class open-hand () ())
+(p:define-protocol-class closed-hand ()
   ((ura-dora-list :accessor hand-ura-dora-list :initarg :ura-dora)
    ;; TODO: rework riichi-p into a list of hand states, including rinshan,
    ;; daburi, chankan, etc..
    (riichi-p :accessor hand-riichi-p :initarg :riichi-p))
   (:default-initargs :riichi-p nil :ura-dora-list '()))
 
-(defclass open-tsumo-hand (hand open-mixin tsumo-mixin) ())
-(defclass open-ron-hand (hand open-mixin ron-mixin) ())
-(defclass closed-tsumo-hand (hand closed-mixin tsumo-mixin) ())
-(defclass closed-ron-hand (hand closed-mixin ron-mixin) ())
+(defclass open-tsumo-hand (open-hand tsumo-hand) ())
+(defclass open-ron-hand (open-hand ron-hand) ())
+(defclass closed-tsumo-hand (closed-hand tsumo-hand) ())
+(defclass closed-ron-hand (closed-hand ron-hand) ())

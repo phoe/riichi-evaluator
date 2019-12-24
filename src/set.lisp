@@ -37,7 +37,7 @@
    #:open-tile #:tiles #:taken-from
    ;; Protocol
    #:set #:set-count #:tiles #:same-tile-set
-   #:closed-set-mixin #:open-set-mixin #:taken-from
+   #:closed-set #:open-set #:taken-from
    #:shuntsu #:toitsu #:koutsu #:kantsu #:set=
    ;; Concrete classes
    #:antoi #:mintoi #:anjun #:minjun #:ankou #:minkou
@@ -136,22 +136,22 @@
 (defmethod tiles ((set same-tile-set))
   (make-list (set-count set) :initial-element (same-tile-set-tile set)))
 
-(p:define-protocol-class closed-set-mixin () ())
+(p:define-protocol-class closed-set (set) ())
 
-(defmethod print-set-using-class ((set closed-set-mixin) stream)
+(defmethod print-set-using-class ((set closed-set) stream)
   (print-tile-list (tiles set) stream))
 
-(p:define-protocol-class open-set-mixin ()
+(p:define-protocol-class open-set (set)
   ((%taken-from :reader taken-from :initarg :taken-from))
   (:default-initargs
    :taken-from (a:required-argument :taken-from)))
 
-(defmethod print-set-using-class :after ((set open-set-mixin) stream)
+(defmethod print-set-using-class :after ((set open-set) stream)
   (let* ((tile (first (tiles set)))
          (suit (suit tile)))
     (princ (a:assoc-value *tile-list-map* suit) stream)))
 
-(defmethod initialize-instance :after ((set open-set-mixin) &key)
+(defmethod initialize-instance :after ((set open-set) &key)
   (let ((taken-from (taken-from set)))
     (unless (member taken-from *other-players*)
       (error 'invalid-tile-taken-from
@@ -199,18 +199,18 @@
 
 ;;; Concrete classes
 
-(defclass antoi (toitsu closed-set-mixin) ())
-(defclass mintoi (toitsu open-set-mixin) ())
+(defclass antoi (toitsu closed-set) ())
+(defclass mintoi (toitsu open-set) ())
 
-(defclass ankou (koutsu closed-set-mixin) ())
-(defclass minkou (koutsu open-set-mixin) ())
+(defclass ankou (koutsu closed-set) ())
+(defclass minkou (koutsu open-set) ())
 
-(defclass ankan (kantsu closed-set-mixin) ())
-(defclass daiminkan (kantsu open-set-mixin) ())
-(defclass shouminkan (kantsu open-set-mixin) ())
+(defclass ankan (kantsu closed-set) ())
+(defclass daiminkan (kantsu open-set) ())
+(defclass shouminkan (kantsu open-set) ())
 
-(defclass anjun (shuntsu closed-set-mixin) ())
-(defclass minjun (shuntsu open-set-mixin)
+(defclass anjun (shuntsu closed-set) ())
+(defclass minjun (shuntsu open-set)
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
    :taken-from :kamicha ;; TODO test this default initarg

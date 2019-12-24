@@ -200,34 +200,6 @@
 
 (defmethod tile< ((a honor-tile) (b suited-tile)) nil)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ;; Tile parser
 
 (define-condition invalid-tile (error)
@@ -288,6 +260,8 @@
         (error 'invalid-set :list seq :reason "A pair cannot be open."))
       (list* open-or-closed type tiles))))
 
+;;; Hand parser
+
 (define-condition invalid-hand (error)
   ((reason :initarg :reason
            :initform "No reason given."
@@ -324,6 +298,32 @@
     (type-error (c) (error 'invalid-hand-element
                            :element (format nil "~a list" which)
                            :value (type-error-datum c)))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;;; Hand
 

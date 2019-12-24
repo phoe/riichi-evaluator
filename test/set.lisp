@@ -29,8 +29,8 @@
            (fail (apply #'make-instance class args) 'p:protocol-error)))
     (try 'rs:set 'rs::%count 3)
     (try 'rs:same-tile-set 'rs::%count 3 :tile (rt:make-tile "1p"))
-    (try 'rs:closed-set-mixin)
-    (try 'rs:open-set-mixin :taken-from :kamicha)
+    (try 'rs:closed-set)
+    (try 'rs:open-set :taken-from :kamicha)
     (try 'rs:shuntsu :lowest-tile (rt:make-tile "1p"))
     (try 'rs:toitsu :tile (rt:make-tile "1p"))
     (try 'rs:koutsu :tile (rt:make-tile "1p"))
@@ -274,3 +274,6 @@
               (is rs:set= set-1 set-2)
               (isnt rs:set= set-1 set-2))))
       (fresh-line))))
+
+(define-test foo
+  (is = (+ 2 2) 4))
