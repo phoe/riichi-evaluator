@@ -36,6 +36,8 @@
 
 (define-condition invalid-hand (riichi-evaluator-error) ())
 
+(define-condition invalid-hand-element (type-error riichi-evaluator-error) ())
+
 (define-condition invalid-situation (invalid-hand)
   ((%hand :reader invalid-situation-hand :initarg :hand)
    (%situation :reader invalid-situation-situation :initarg :situation)
@@ -55,13 +57,13 @@
 ;;; Hand
 
 (defclass hand ()
-  ((prevailing-wind :accessor hand-prevailing-wind :initarg :prevailing-wind)
-   (seat-wind :accessor hand-seat-wind :initarg :seat-wind)
-   (winning-tile :accessor hand-winning-tile :initarg :winning-tile)
-   (locked-sets :accessor hand-locked-sets :initarg :locked-sets)
-   (free-tiles :accessor hand-free-tiles :initarg :free-tiles)
-   (dora-list :accessor hand-dora-list :initarg :dora-list)
-   (situations :accessor situations :initarg :situations))
+  ((%prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
+   (%seat-wind :accessor seat-wind :initarg :seat-wind)
+   (%winning-tile :accessor winning-tile :initarg :winning-tile)
+   (%locked-sets :accessor locked-sets :initarg :locked-sets)
+   (%free-tiles :accessor free-tiles :initarg :free-tiles)
+   (%dora-list :accessor dora-list :initarg :dora-list)
+   (%situations :accessor situations :initarg :situations))
   (:default-initargs
    :prevailing-wind :east :seat-wind :east
    :winning-tile (a:required-argument :winning-tile)
@@ -75,7 +77,26 @@
     (error 'invalid-situation :situation situation :hand hand :args args
                               :reason "Unknown situation.")))
 
+;; TODO validate that there are at most 4 tiles of any given kind in a hand.
+
+(defun check-hand-element-type (datum expected-type)
+  (unless (typep datum expected-type)
+    (error 'invalid-hand-element :datum datum
+                                 :expected-type expected-type)))
+
+(defun check-hand-element-type-list (list expected-type)
+  (check-hand-element-type list 'list)
+  (dolist (elt list)
+    (check-hand-element-type elt expected-type)))
+
 (defmethod initialize-instance :after ((hand hand) &key)
+  (check-hand-element-type (prevailing-wind hand) '#.`(member ,@*winds*))
+  (check-hand-element-type (seat-wind hand) '#.`(member ,@*winds*))
+  (check-hand-element-type (winning-tile hand) 'tile)
+  (check-hand-element-type-list (locked-sets hand) 'set)
+  (check-hand-element-type-list (free-tiles hand) 'tile)
+  (check-hand-element-type-list (dora-list hand) 'tile)
+  (check-hand-element-type-list (situations hand) '(or keyword (cons keyword)))
   (dolist (situation (situations hand))
     (if (listp situation)
         (apply #'validate-situation hand situation)

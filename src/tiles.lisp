@@ -108,7 +108,7 @@
   (unless (member (suit tile) *suits*)
     (error 'invalid-tile-datum
            :datum (suit tile)
-           :expected-type `(member ,@*suits*)))
+           :expected-type '#.`(member ,@*suits*)))
   (unless (and (numberp (rank tile))
                (<= 1 (rank tile) 9))
     (error 'invalid-tile-datum
@@ -159,11 +159,11 @@
 (defmethod initialize-instance :after ((tile honor-tile) &key)
   (unless (member (kind tile) *honors*)
     (error 'invalid-tile-datum :datum (kind tile)
-                               :expected-type `(member ,@*honors*))))
+                               :expected-type '#.`(member ,@*honors*))))
 
 (defmethod rank ((tile honor-tile)) (1+ (position (kind tile) *honors*)))
 
-;; TODO: rework the object tree to use this fact.
+;; NOTE: Convenience method. Note that honor tiles are nonetheless not SUITED-P.
 (defmethod suit ((tile honor-tile)) :honor)
 
 (defmethod honor-p ((tile honor-tile)) t)

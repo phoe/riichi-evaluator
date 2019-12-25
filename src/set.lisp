@@ -154,7 +154,7 @@
     (unless (member taken-from *other-players*)
       (error 'invalid-tile-taken-from
              :datum taken-from
-             :expected-type `(member ,*other-players*)))))
+             :expected-type '#.`(member ,*other-players*)))))
 
 (defun print-open-set (set stream if-kamicha if-toimen if-shimocha)
   (let* ((rank (rank (first (tiles set))))
