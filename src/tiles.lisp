@@ -52,6 +52,9 @@
 
 (p:define-protocol-class tile () ())
 
+(defmethod make-load-form ((tile tile) &optional env)
+  (make-load-form-saving-slots tile :environment env))
+
 (defgeneric tile-p (tile)
   (:method (tile) nil)
   (:method ((tile tile)) t))
