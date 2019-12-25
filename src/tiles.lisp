@@ -105,10 +105,10 @@
           :reader rank)))
 
 (defmethod initialize-instance :after ((tile suited-tile) &key)
-  (unless (member (suit tile) *suit-table* :key #'cdr)
+  (unless (member (suit tile) *suits*)
     (error 'invalid-tile-datum
            :datum (suit tile)
-           :expected-type `(member ,@(mapcar #'cdr *suit-table*))))
+           :expected-type `(member ,@*suits*)))
   (unless (and (numberp (rank tile))
                (<= 1 (rank tile) 9))
     (error 'invalid-tile-datum
@@ -116,13 +116,11 @@
 
 (defmethod print-object ((tile suited-tile) stream)
   (handler-case
-      (format stream "[~D~C]"
-              (rank tile)
-              (char-downcase (a:rassoc-value *suit-table* (suit tile))))
+      (format stream "[~D~A]" (rank tile)
+              (a:assoc-value *lisp-print-table* (suit tile)))
     (error () (format stream "[##]"))))
 
-(defmethod suited-p ((tile suited-tile))
-  t)
+(defmethod suited-p ((tile suited-tile)) t)
 
 (defmethod terminal-p ((tile suited-tile))
   (member (rank tile) '(1 9) :test #'=))
@@ -141,8 +139,8 @@
        (of-suit (suit a) b)))
 
 (defmethod tile< ((a suited-tile) (b suited-tile))
-  (let ((pos-a (position (suit a) *suit-table* :key #'cdr))
-        (pos-b (position (suit b) *suit-table* :key #'cdr)))
+  (let ((pos-a (position (suit a) *suits*))
+        (pos-b (position (suit b) *suits*)))
     (or (< pos-a pos-b)
         (and (= pos-a pos-b) (< (rank a) (rank b))))))
 
@@ -159,34 +157,25 @@
           :reader kind)))
 
 (defmethod initialize-instance :after ((tile honor-tile) &key)
-  (unless (member (kind tile) *honor-table* :key #'cdr)
-    (error 'invalid-tile-datum
-           :datum (kind tile)
-           :expected-type `(member ,@(mapcar #'cdr *honor-table*)))))
+  (unless (member (kind tile) *honors*)
+    (error 'invalid-tile-datum :datum (kind tile)
+                               :expected-type `(member ,@*honors*))))
 
-(defmethod rank ((tile honor-tile))
-  (1+ (position (kind tile) *honor-table* :key #'cdr)))
+(defmethod rank ((tile honor-tile)) (1+ (position (kind tile) *honors*)))
 
 ;; TODO: rework the object tree to use this fact.
 (defmethod suit ((tile honor-tile)) :honor)
 
-(defmethod honor-p ((tile honor-tile))
-  t)
+(defmethod honor-p ((tile honor-tile)) t)
 
-(defmethod wind-p ((tile honor-tile))
-  (position (kind tile) *wind-table* :key #'cdr))
+(defmethod wind-p ((tile honor-tile)) (position (kind tile) *winds*))
 
-(defmethod dragon-p ((tile honor-tile))
-  (position (kind tile) *dragon-table* :key #'cdr))
+(defmethod dragon-p ((tile honor-tile)) (position (kind tile) *dragons*))
 
 (defmethod print-object ((tile honor-tile) stream)
   (handler-case
-      (let ((text (cond ((wind-p tile)
-                         (a:rassoc-value *honor-table* (kind tile)))
-                        ((dragon-p tile)
-                         (a:rassoc-value *dragon-print-table* (kind tile)))
-                        (t (error "Invalid honor tile")))))
-        (format stream "[~A]" text))
+      (format stream "[~A]"
+              (a:assoc-value *lisp-print-table* (kind tile)))
     (error () (format stream "[##]"))))
 
 (defmethod of-wind (wind (tile honor-tile))
@@ -199,8 +188,8 @@
   (equal (kind a) (kind b)))
 
 (defmethod tile< ((a honor-tile) (b honor-tile))
-  (let ((pos-a (position (kind a) *honor-table* :key #'cdr))
-        (pos-b (position (kind b) *honor-table* :key #'cdr)))
+  (let ((pos-a (position (kind a) *honors*))
+        (pos-b (position (kind b) *honors*)))
     (< pos-a pos-b)))
 
 (defmethod tile-consec-p ((t1 honor-tile) (t2 honor-tile) &key wrap-around)
@@ -209,8 +198,8 @@
              (elt table (mod (1+ pos) (length table)))
              (return-from tile-consec-p nil))))
     (when wrap-around
-      (let* ((table (cond ((wind-p t1) (mapcar #'cdr *wind-table*))
-                          ((dragon-p t1) (mapcar #'cdr *dragon-table*))))
+      (let* ((table (cond ((wind-p t1) *winds*)
+                          ((dragon-p t1) *dragons*)))
              (succ (next-with-rollover (kind t1) table)))
         (equal succ (kind t2))))))
 
@@ -228,45 +217,37 @@
       ((reader-error (control &rest args)
          (error 'a:simple-reader-error
                 :stream stream
-                :format-control control :format-arguments args))
-       (check-final-char ()
-         (let ((final-char (read-char stream t nil t)))
-           (unless (eql #\] final-char)
-             (reader-error "Expected a #\] but got ~@C instead." final-char)))))
-    (let* ((char (read-char stream t nil t))
-           (digit (digit-char-p char))
-           next-char
-           result)
+                :format-control control :format-arguments args)))
+    (let* ((char-1 (read-char stream t nil t))
+           (char-2 (read-char stream t nil t))
+           (final-char (read-char stream t nil t)))
+      (unless (find char-1 "123456789ESWNWGR" :test #'char-equal)
+        (reader-error "Invalid first tile character ~@C." char-1))
+      (unless (find char-2 "MPSWD" :test #'char-equal)
+        (reader-error "Invalid second tile character ~@C." char-2))
+      (unless (eql #\] final-char)
+        (reader-error "Expected a #\] but got ~@C instead." final-char))
       (cond
-        ((eql digit 0)
-         ;; "0 of circles" is actually a meme in the Kraków Chombo Club.
-         (reader-error "Attempted to read a 0-rank tile."))
-        (digit
-         ;; Suited tile.
-         (let* ((suit-char (read-char stream t nil t))
-                (suit (or (a:assoc-value *suit-table* suit-char
-                                         :test #'char-equal)
-                          (reader-error "Invalid suit character: ~@C"
-                                        suit-char))))
-           (setf result (make-instance 'suited-tile :suit suit :rank digit))))
-        ((eql #\] (setf next-char (peek-char nil stream t nil t)))
-         ;; Wind tile.
-         (let ((wind (or (a:assoc-value *wind-table* char
-                                        :test #'char-equal)
-                         (reader-error "Invalid wind character: ~@C"
-                                       next-char))))
-           (setf result (make-instance 'honor-tile :kind wind))))
-        (t
-         ;; Dragon tile.
-         (setf next-char (read-char stream t nil t))
-         (let* ((string (coerce (list char next-char) 'string))
-                (dragon (or (a:assoc-value *dragon-print-table* string
-                                           :test #'string-equal)
-                            (reader-error "Invalid dragon character: ~@C"
-                                          next-char))))
-           (setf result (make-instance 'honor-tile :kind dragon)))))
-      (check-final-char)
-      result)))
+        ;; Suited tile.
+        ((and (digit-char-p char-1) (<= 1 (digit-char-p char-1) 9)
+              (member char-2 *suit-read-table* :key #'cdr))
+         (let* ((suit (a:rassoc-value *suit-read-table* char-2
+                                      :test #'char-equal)))
+           (make-instance 'suited-tile :suit suit
+                                       :rank (digit-char-p char-1))))
+        ;; Wind tile.
+        ((and (eql #\W char-2) (member char-1 *wind-read-table* :key #'cdr))
+         (let ((wind (a:rassoc-value *wind-read-table* char-1
+                                     :test #'char-equal)))
+           (make-instance 'honor-tile :kind wind)))
+        ;; Dragon tile.
+        ((and (eql #\D char-2) (member char-1 *dragon-read-table* :key #'cdr))
+         (let ((wind (a:rassoc-value *dragon-read-table* char-1
+                                     :test #'char-equal)))
+           (make-instance 'honor-tile :kind wind)))
+        ;; Invalid tile.
+        (t (reader-error "Attempted to read an unknown tile [~C~C]."
+                         char-1 char-2))))))
 
 (nr:defreadtable :riichi-evaluator
   (:merge :standard)
@@ -288,10 +269,10 @@
           do (push (digit-char-p char) ranks)
         else
           nconc
-          (loop with suit = (a:rassoc-value *tile-list-map* char)
+          (loop with suit = (a:rassoc-value *print-table* char)
                 for rank in (nreverse ranks)
                 collect (if (eq suit :honor)
-                            (let ((kind (cdr (nth (1- rank) *honor-table*))))
+                            (let ((kind (nth (1- rank) *honors*)))
                               (make-instance 'honor-tile :kind kind))
                             (make-instance 'suited-tile :rank rank :suit suit))
                 finally (setf ranks '()))
@@ -304,15 +285,15 @@
          (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
                with last-suit = (suit (first sorted-tiles))
                for tile in sorted-tiles
-               for rank = (if (suited-p tile) (rank tile)
-                              (1+ (position (kind tile) *honor-table*
-                                            :key #'cdr)))
+               for rank = (if (suited-p tile)
+                              (rank tile)
+                              (1+ (position (kind tile) *honors*)))
                for suit = (if (suited-p tile) (suit tile) :honor)
                unless (eq suit last-suit)
-                 do (princ (a:assoc-value *tile-list-map* last-suit) stream)
+                 do (princ (a:assoc-value *print-table* last-suit) stream)
                     (setf last-suit suit)
                do (princ rank stream)
-               finally (princ (a:assoc-value *tile-list-map* suit) stream))))
+               finally (princ (a:assoc-value *print-table* suit) stream))))
     (case stream
       ((t) (thunk *standard-output*))
       ((nil) (with-output-to-string (stream) (thunk stream)))

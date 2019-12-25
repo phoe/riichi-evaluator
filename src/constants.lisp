@@ -24,45 +24,45 @@
   (:use #:cl)
   (:export
    ;; Variables
-   #:*suit-table* #:*wind-table* #:*dragon-table* #:*dragon-print-table*
-   #:*honor-table* #:*other-players* #:*tile-list-map*
+   #:*suits* #:*winds* #:*dragons* #:*honors* #:*other-players*
+   #:*suit-read-table* #:*wind-read-table* #:*dragon-read-table*
+   #:*print-table* #:*lisp-print-table*
    ;; Conditions
    #:riichi-evaluator-error))
 
 (in-package #:riichi-evaluator.constants)
 
-(defparameter *suit-table*
-  '((#\M . :number)
-    (#\P . :circle)
-    (#\S . :bamboo)))
+(defparameter *suits* '(:number :circle :bamboo))
+(defparameter *winds* '(:east :south :west :north))
+(defparameter *dragons* '(:haku :hatsu :chun))
+(defparameter *honors* (append *winds* *dragons*))
+(defparameter *other-players* '(:shimocha :toimen :kamicha))
 
-(defparameter *wind-table*
-  '((#\E . :east)
-    (#\S . :south)
-    (#\W . :west)
-    (#\N . :north)))
+(defparameter *suit-read-table*
+  '((:number . #\m)
+    (:circle . #\p)
+    (:bamboo . #\s)))
 
-(defparameter *dragon-table*
-  '((#\B . :haku)
-    (#\F . :hatsu)
-    (#\C . :chun)))
+(defparameter *wind-read-table*
+  '((:east . #\E)
+    (:south . #\S)
+    (:west . #\W)
+    (:north . #\N)))
 
-;; TODO move this into methods instead
-(defparameter *dragon-print-table*
-  '(("Hk" . :haku)
-    ("Ht" . :hatsu)
-    ("Ch" . :chun)))
+(defparameter *dragon-read-table*
+  '((:haku . #\W)
+    (:hatsu . #\G)
+    (:chun . #\R)))
 
-(defparameter *honor-table*
-  (append *wind-table* *dragon-table*))
-
-(defparameter *other-players*
-  '(:shimocha :toimen :kamicha))
-
-(defparameter *tile-list-map*
+(defparameter *print-table*
   '((:number . #\m)
     (:circle . #\p)
     (:bamboo . #\s)
     (:honor . #\z)))
+
+(defparameter *lisp-print-table*
+  '((:number . #\m) (:circle . #\p) (:bamboo . #\s)
+    (:east . "EW")  (:south . "SW") (:west . "WW") (:north . "NW")
+    (:haku . "WD")  (:hatsu . "GD") (:chun . "RD")))
 
 (define-condition riichi-evaluator-error (error) ())

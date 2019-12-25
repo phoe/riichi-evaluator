@@ -100,8 +100,6 @@
   ((%count :reader set-count :initarg %count))
   (:default-initargs %count (a:required-argument '%count)))
 
-(defgeneric tiles (set))
-
 (defgeneric set= (set-1 set-2)
   (:method (set-1 set-2) nil))
 
@@ -149,7 +147,7 @@
 (defmethod print-set-using-class :after ((set open-set) stream)
   (let* ((tile (first (tiles set)))
          (suit (suit tile)))
-    (princ (a:assoc-value *tile-list-map* suit) stream)))
+    (princ (a:assoc-value *print-table* suit) stream)))
 
 (defmethod initialize-instance :after ((set open-set) &key)
   (let ((taken-from (taken-from set)))
@@ -292,7 +290,7 @@
 
 (defun try-read-make-tile (rank suit)
   (if (eq suit :honor)
-      (make-instance 'honor-tile :kind (cdr (nth (1- rank) *honor-table*)))
+      (make-instance 'honor-tile :kind (nth (1- rank) *honors*))
       (make-instance 'suited-tile :suit suit :rank rank)))
 
 (defmacro destructure-string (lambda-list string &body body)
@@ -307,7 +305,7 @@
   (destructure-string (c1 c2 c3) string
     (a:when-let ((rank-1 (digit-char-p c1))
                  (rank-2 (digit-char-p c2))
-                 (suit (a:rassoc-value *tile-list-map* c3)))
+                 (suit (a:rassoc-value *print-table* c3)))
       (when (= rank-1 rank-2)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'antoi :tile tile))))))
@@ -320,7 +318,7 @@
                   (rank-2 (case taken-from
                             (:kamicha (digit-char-p c3))
                             (:shimocha (digit-char-p c2))))
-                  (suit (a:rassoc-value *tile-list-map* c4)))
+                  (suit (a:rassoc-value *print-table* c4)))
       (when (= rank-1 rank-2)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'mintoi :tile tile
@@ -331,7 +329,7 @@
     (when (char= #\* c2 c4)
       (a:when-let ((rank-1 (digit-char-p c1))
                    (rank-2 (digit-char-p c3))
-                   (suit (a:rassoc-value *tile-list-map* c5)))
+                   (suit (a:rassoc-value *print-table* c5)))
         (when (= rank-1 rank-2)
           (let ((tile (try-read-make-tile rank-1 suit)))
             (make-instance 'mintoi :tile tile
@@ -342,7 +340,7 @@
     (a:when-let ((rank-1 (digit-char-p c1))
                  (rank-2 (digit-char-p c2))
                  (rank-3 (digit-char-p c3))
-                 (suit (a:rassoc-value *tile-list-map* c4)))
+                 (suit (a:rassoc-value *print-table* c4)))
       (when (= rank-1 rank-2 rank-3)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'ankou :tile tile))))))
@@ -359,7 +357,7 @@
                   (rank-3 (case taken-from
                             ((:kamicha :toimen) (digit-char-p c4))
                             (:shimocha (digit-char-p c3))))
-                  (suit (a:rassoc-value *tile-list-map* c5)))
+                  (suit (a:rassoc-value *print-table* c5)))
       (when (= rank-1 rank-2 rank-3)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'minkou :tile tile
@@ -371,7 +369,7 @@
                  (rank-2 (digit-char-p c2))
                  (rank-3 (digit-char-p c3))
                  (rank-4 (digit-char-p c4))
-                 (suit (a:rassoc-value *tile-list-map* c5)))
+                 (suit (a:rassoc-value *print-table* c5)))
       (when (= rank-1 rank-2 rank-3 rank-4)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'ankan :tile tile))))))
@@ -391,7 +389,7 @@
                   (rank-4 (case taken-from
                             ((:kamicha :toimen) (digit-char-p c5))
                             (:shimocha (digit-char-p c4))))
-                  (suit (a:rassoc-value *tile-list-map* c6)))
+                  (suit (a:rassoc-value *print-table* c6)))
       (when (= rank-1 rank-2 rank-3 rank-4)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'daiminkan :tile tile
@@ -413,7 +411,7 @@
                   (rank-4 (case taken-from
                             ((:kamicha :toimen) (digit-char-p c7))
                             (:shimocha (digit-char-p c5))))
-                  (suit (a:rassoc-value *tile-list-map* c8)))
+                  (suit (a:rassoc-value *print-table* c8)))
       (when (= rank-1 rank-2 rank-3 rank-4)
         (let ((tile (try-read-make-tile rank-1 suit)))
           (make-instance 'shouminkan :tile tile
@@ -424,7 +422,7 @@
     (a:when-let ((rank-1 (digit-char-p c1))
                  (rank-2 (digit-char-p c2))
                  (rank-3 (digit-char-p c3))
-                 (suit (a:rassoc-value *tile-list-map* c4)))
+                 (suit (a:rassoc-value *print-table* c4)))
       (unless (eq suit :honor)
         (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
                                       :suit suit :rank)
@@ -443,7 +441,7 @@
       (a:when-let ((rank-1 (digit-char-p c1))
                    (rank-2 (digit-char-p c3))
                    (rank-3 (digit-char-p c4))
-                   (suit (a:rassoc-value *tile-list-map* c5)))
+                   (suit (a:rassoc-value *print-table* c5)))
         (unless (eq suit :honor)
           (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
                                         :suit suit :rank)

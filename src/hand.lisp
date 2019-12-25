@@ -22,6 +22,7 @@
 
 (defpackage #:riichi-evaluator.hand
   (:use #:cl
+        #:riichi-evaluator.constants
         #:riichi-evaluator.tiles
         #:riichi-evaluator.set)
   (:shadowing-import-from #:riichi-evaluator.set
@@ -31,6 +32,26 @@
 
 (in-package #:riichi-evaluator.hand)
 
+;;; Conditions
+
+(define-condition invalid-hand (riichi-evaluator-error) ())
+
+(define-condition invalid-situation (invalid-hand)
+  ((%hand :reader invalid-situation-hand :initarg :hand)
+   (%situation :reader invalid-situation-situation :initarg :situation)
+   (%args :reader invalid-args-args :initarg :args)
+   (%reason :reader invalid-situation-reason :initarg :reason))
+  (:default-initargs
+   :hand (a:required-argument :hand)
+   :situation (a:required-argument :situation)
+   :args '()
+   :reason "No reason given.")
+  (:report (lambda (condition stream)
+             (format stream "Invalid situation ~S for hand ~S: ~A"
+                     (invalid-situation-hand condition)
+                     (invalid-situation-situation condition)
+                     (invalid-situation-reason condition)))))
+
 ;;; Hand
 
 (defclass hand ()
@@ -39,23 +60,33 @@
    (winning-tile :accessor hand-winning-tile :initarg :winning-tile)
    (locked-sets :accessor hand-locked-sets :initarg :locked-sets)
    (free-tiles :accessor hand-free-tiles :initarg :free-tiles)
-   (dora-list :accessor hand-dora-list :initarg :dora-list))
+   (dora-list :accessor hand-dora-list :initarg :dora-list)
+   (situations :accessor situations :initarg :situations))
   (:default-initargs
    :prevailing-wind :east :seat-wind :east
    :winning-tile (a:required-argument :winning-tile)
    :locked-sets (a:required-argument :locked-sets)
    :free-tiles (a:required-argument :free-tiles)
-   :dora-list (a:required-argument :dora-list)))
+   :dora-list (a:required-argument :dora-list)
+   :situations '()))
+
+(defgeneric validate-situation (hand situation &rest args)
+  (:method ((hand hand) situation &rest args)
+    (error 'invalid-situation :situation situation :hand hand :args args
+                              :reason "Unknown situation.")))
+
+(defmethod initialize-instance :after ((hand hand) &key)
+  (dolist (situation (situations hand))
+    (if (listp situation)
+        (apply #'validate-situation hand situation)
+        (validate-situation hand situation))))
 
 (p:define-protocol-class tsumo-hand () ())
 (p:define-protocol-class ron-hand () ())
 (p:define-protocol-class open-hand () ())
 (p:define-protocol-class closed-hand ()
-  ((ura-dora-list :accessor hand-ura-dora-list :initarg :ura-dora)
-   ;; TODO: rework riichi-p into a list of hand states, including rinshan,
-   ;; daburi, chankan, etc..
-   (riichi-p :accessor hand-riichi-p :initarg :riichi-p))
-  (:default-initargs :riichi-p nil :ura-dora-list '()))
+  ((ura-dora-list :accessor hand-ura-dora-list :initarg :ura-dora))
+  (:default-initargs :ura-dora-list '()))
 
 (defclass open-tsumo-hand (open-hand tsumo-hand) ())
 (defclass open-ron-hand (open-hand ron-hand) ())

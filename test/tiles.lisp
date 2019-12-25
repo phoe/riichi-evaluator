@@ -175,7 +175,7 @@
   "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
     [1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]
     [1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s] [9s]
-    [E]  [S]  [W]  [N]  [Hk] [Ht] [Ch])")
+    [EW] [SW] [WW] [NW] [WD] [GD] [RD])")
 
 (defparameter *tile-list-reader-data*
   "123456789m123456789p123456789s1234567z")

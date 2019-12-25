@@ -37,8 +37,11 @@
                (:file "set")
                (:file "hand")
                ;;(:file "mah-eval")
-               ))
+               )
+  :in-order-to ((test-op (load-op :riichi-evaluator.test)))
+  :perform
+  (test-op (o c)
+           (symbol-call '#:parachute '#:test :riichi-evaluator.test
+                        :report (find-symbol "INTERACTIVE" "PARACHUTE"))))
 
-(defmethod perform ((o test-op) (c (eql (find-system :riichi-evaluator))))
-  (load-system :riichi-evaluator.test)
-  (symbol-call :parachute :test :riichi-evaluator.test))
+
