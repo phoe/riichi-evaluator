@@ -210,21 +210,45 @@
 ;;; Concrete classes
 
 (defclass antoi (toitsu closed-set) ())
+(defun antoi (tile)
+  (make-instance 'antoi :tile tile))
+
 (defclass mintoi (toitsu open-set) ())
+(defun mintoi (tile taken-from)
+  (make-instance 'mintoi :tile tile :taken-from taken-from))
 
 (defclass ankou (koutsu closed-set) ())
+(defun ankou (tile)
+  (make-instance 'ankou :tile tile))
+
 (defclass minkou (koutsu open-set) ())
+(defun minkou (tile taken-from)
+  (make-instance 'minkou :tile tile :taken-from taken-from))
 
 (defclass ankan (kantsu closed-set) ())
+(defun ankan (tile)
+  (make-instance 'ankan :tile tile))
+
 (defclass daiminkan (kantsu open-set) ())
+(defun daiminkan (tile taken-from)
+  (make-instance 'daiminkan :tile tile :taken-from taken-from))
+
 (defclass shouminkan (kantsu open-set) ())
+(defun shouminkan (tile taken-from)
+  (make-instance 'shouminkan :tile tile :taken-from taken-from))
 
 (defclass anjun (shuntsu closed-set) ())
+(defun anjun (lowest-tile)
+  (make-instance 'anjun :lowest-tile lowest-tile))
+
 (defclass minjun (shuntsu open-set)
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
    :taken-from :kamicha ;; TODO test this default initarg
    :open-tile (a:required-argument :open-tile)))
+(defun minjun (lowest-tile open-tile taken-from)
+  (make-instance 'minjun :lowest-tile lowest-tile
+                         :open-tile open-tile :taken-from taken-from))
 
 (defmethod initialize-instance :after ((set minjun) &key)
   (let ((tile (open-tile set)))
@@ -315,8 +339,7 @@
                  (rank-2 (digit-char-p c2))
                  (suit (a:rassoc-value *print-table* c3)))
       (when (= rank-1 rank-2)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'antoi :tile tile))))))
+        (antoi (try-read-make-tile rank-1 suit))))))
 
 (defmethod try-read-set chained-or :mintoi-kami-shimo-cha ((string string))
   (destructure-string (c1 c2 c3 c4) string
@@ -328,9 +351,7 @@
                             (:shimocha (digit-char-p c2))))
                   (suit (a:rassoc-value *print-table* c4)))
       (when (= rank-1 rank-2)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'mintoi :tile tile
-                                 :taken-from taken-from))))))
+        (mintoi (try-read-make-tile rank-1 suit) taken-from)))))
 
 (defmethod try-read-set chained-or :mintoi-toimen ((string string))
   (destructure-string (c1 c2 c3 c4 c5) string
@@ -339,9 +360,7 @@
                    (rank-2 (digit-char-p c3))
                    (suit (a:rassoc-value *print-table* c5)))
         (when (= rank-1 rank-2)
-          (let ((tile (try-read-make-tile rank-1 suit)))
-            (make-instance 'mintoi :tile tile
-                                   :taken-from :toimen)))))))
+          (mintoi (try-read-make-tile rank-1 suit) :toimen))))))
 
 (defmethod try-read-set chained-or :ankou ((string string))
   (destructure-string (c1 c2 c3 c4) string
@@ -350,8 +369,7 @@
                  (rank-3 (digit-char-p c3))
                  (suit (a:rassoc-value *print-table* c4)))
       (when (= rank-1 rank-2 rank-3)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'ankou :tile tile))))))
+        (ankou (try-read-make-tile rank-1 suit))))))
 
 (defmethod try-read-set chained-or :minkou ((string string))
   (destructure-string (c1 c2 c3 c4 c5) string
@@ -367,9 +385,7 @@
                             (:shimocha (digit-char-p c3))))
                   (suit (a:rassoc-value *print-table* c5)))
       (when (= rank-1 rank-2 rank-3)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'minkou :tile tile
-                                 :taken-from taken-from))))))
+        (minkou (try-read-make-tile rank-1 suit) taken-from)))))
 
 (defmethod try-read-set chained-or :ankan ((string string))
   (destructure-string (c1 c2 c3 c4 c5) string
@@ -379,8 +395,7 @@
                  (rank-4 (digit-char-p c4))
                  (suit (a:rassoc-value *print-table* c5)))
       (when (= rank-1 rank-2 rank-3 rank-4)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'ankan :tile tile))))))
+        (ankan (try-read-make-tile rank-1 suit))))))
 
 (defmethod try-read-set chained-or :daiminkan ((string string))
   (destructure-string (c1 c2 c3 c4 c5 c6) string
@@ -399,9 +414,7 @@
                             (:shimocha (digit-char-p c4))))
                   (suit (a:rassoc-value *print-table* c6)))
       (when (= rank-1 rank-2 rank-3 rank-4)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'daiminkan :tile tile
-                                    :taken-from taken-from))))))
+        (daiminkan (try-read-make-tile rank-1 suit) taken-from)))))
 
 (defmethod try-read-set chained-or :shouminkan ((string string))
   (destructure-string (c1 c2 c3 c4 c5 c6 c7 c8) string
@@ -421,9 +434,7 @@
                             (:shimocha (digit-char-p c5))))
                   (suit (a:rassoc-value *print-table* c8)))
       (when (= rank-1 rank-2 rank-3 rank-4)
-        (let ((tile (try-read-make-tile rank-1 suit)))
-          (make-instance 'shouminkan :tile tile
-                                     :taken-from taken-from))))))
+        (shouminkan (try-read-make-tile rank-1 suit) taken-from)))))
 
 (defmethod try-read-set chained-or :anjun ((string string))
   (destructure-string (c1 c2 c3 c4) string
@@ -438,10 +449,9 @@
           (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
             (when (and (tile-consec-p tile-1 tile-2)
                        (tile-consec-p tile-2 tile-3))
-              (let ((tile (make-instance 'suited-tile
-                                         :suit suit
-                                         :rank (min rank-1 rank-2 rank-3))))
-                (make-instance 'anjun :lowest-tile tile)))))))))
+              (let ((rank (min rank-1 rank-2 rank-3)))
+                (anjun (make-instance 'suited-tile
+                                      :suit suit :rank rank))))))))))
 
 (defmethod try-read-set chained-or :minjun ((string string))
   (destructure-string (c1 c2 c3 c4 c5) string
@@ -460,82 +470,76 @@
                 (let ((open-tile (make-instance 'suited-tile
                                                 :suit suit
                                                 :rank rank-1)))
-                  (make-instance 'minjun :lowest-tile tile-1
-                                         :open-tile open-tile
-                                         :taken-from :kamicha))))))))))
+                  (minjun tile-1 open-tile :kamicha))))))))))
 
-;;; Tile-set matcher
-
-;; TODO test this
-(defgeneric try-make-set-from-tiles (tiles winning-tile tsumop forbidden-sets)
-  (:method-combination chained-or))
+;;; Tile-set matcher ;; TODO test this
 
 (defun try-make-same-tile-set-from-tiles
-    (tiles tile winning-tile forbidden-sets class tile-count args)
-  (when (<= tile-count (count tile tiles :test #'tile=))
-    (let ((set (apply #'make-instance class :tile tile args)))
-      (unless (member set forbidden-sets :test #'set=)
-        (list set winning-tile
-              (remove tile tiles :count tile-count :test #'tile=))))))
+    (tiles winning-tile consume-winning-tile-p forbidden-sets class tile-count
+     &rest args)
+  (flet ((try (tiles tile winning-tile forbidden-sets class tile-count args)
+           (when (<= tile-count (count tile tiles :test #'tile=))
+             (let ((set (apply #'make-instance class :tile tile args)))
+               (unless (member set forbidden-sets :test #'set=)
+                 (list set winning-tile
+                       (remove tile tiles :count tile-count :test #'tile=)))))))
+    (multiple-value-or
+      (values-list
+       (if consume-winning-tile-p
+           (try (cons winning-tile tiles) winning-tile nil
+                forbidden-sets class tile-count args)
+           (dolist (tile tiles)
+             (a:when-let ((result (try tiles tile winning-tile
+                                       forbidden-sets class tile-count args)))
+               (return result)))))
+      (values nil nil nil))))
 
-(defun try-make-same-tile-set-from-tiles-with-winning-tile
-    (tiles winning-tile forbidden-sets class tile-count &rest args)
-  (multiple-value-or
-   (values-list (try-make-same-tile-set-from-tiles
-                 (cons winning-tile tiles) winning-tile nil
-                 forbidden-sets class tile-count args))
-   (values nil nil nil)))
-
-(defun try-make-same-tile-set-from-tiles-without-winning-tile
-    (tiles winning-tile forbidden-sets class tile-count &rest args)
-  (multiple-value-or
-   (dolist (tile tiles)
-     (a:when-let ((result (try-make-same-tile-set-from-tiles
-                           tiles tile winning-tile
-                           forbidden-sets class tile-count args)))
-       (return (values-list result))))
-   (values nil nil nil)))
+(defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
+  (:method-combination chained-or))
 
 (macrolet
     ((make ((class format-control) &body body)
        (let ((name (a:format-symbol :keyword format-control class)))
          `(defmethod try-make-set-from-tiles chained-or ,name
-            (tiles winning-tile taken-from forbidden-sets)
+            (tiles winning-tile win-from forbidden-sets)
             (declare (ignorable winning-tile))
             ,@body)))
-     (define-set-maker-min (class count)
-       `(make (,class "~A-WINNING-TILE")
-              (when (not (eq taken-from :tsumo))
-                (try-make-same-tile-set-from-tiles-with-winning-tile
-                 tiles winning-tile forbidden-sets ',class ,count
-                 :taken-from taken-from))))
-     (define-set-maker-an-agaripai (class count)
-       `(make (,class "~A-WINNING-TILE")
-              (when (eq taken-from :tsumo)
-                (try-make-same-tile-set-from-tiles-with-winning-tile
-                 tiles winning-tile forbidden-sets ',class ,count))))
-     (define-set-maker-an-no-agaripai (class count)
+     (define-set-maker-an (class count)
        `(make (,class "~A-NO-WINNING-TILE")
-              (try-make-same-tile-set-from-tiles-without-winning-tile
-               tiles winning-tile forbidden-sets ',class ,count))))
+              (try-make-same-tile-set-from-tiles
+               tiles winning-tile nil
+               forbidden-sets ',class ,count)))
+     (define-set-maker-min (class count)
+       `(make (,class "~A-WINNING-TILE-RON")
+              (when (not (eq win-from :tsumo))
+                (try-make-same-tile-set-from-tiles
+                 tiles winning-tile t
+                 forbidden-sets ',class ,count
+                 :taken-from win-from))))
+     (define-set-maker-an-tsumo (class count)
+       `(make (,class "~A-WINNING-TILE-TSUMO")
+              (when (eq win-from :tsumo)
+                (try-make-same-tile-set-from-tiles
+                 tiles winning-tile t
+                 forbidden-sets ',class ,count)))))
   (define-set-maker-min mintoi 2)
   (define-set-maker-min minkou 3)
   (define-set-maker-min minkan 4)
-  (define-set-maker-an-agaripai antoi 2)
-  (define-set-maker-an-agaripai ankou 3)
-  (define-set-maker-an-agaripai ankan 4)
-  (define-set-maker-an-no-agaripai antoi 2)
-  (define-set-maker-an-no-agaripai ankou 3)
-  (define-set-maker-an-no-agaripai ankan 4))
+  (define-set-maker-an antoi 2)
+  (define-set-maker-an ankou 3)
+  (define-set-maker-an ankan 4)
+  (define-set-maker-an-tsumo antoi 2)
+  (define-set-maker-an-tsumo ankou 3)
+  (define-set-maker-an-tsumo ankan 4))
 
 (defun poor-mans-test ()
-  (let ((hand-tiles '([2p] [2p] [3p]))
-        (drawn-tile [2p]))
+  (let ((hand-tiles '([2p] [2p] [3p])))
     (flet ((test (&rest args)
              (multiple-value-list
-              (apply #'try-make-set-from-tiles hand-tiles drawn-tile args))))
-      (list (test :kamicha (list (make-instance 'antoi :tile [2p])))
-            (test :toimen (list (make-instance 'antoi :tile [2p])))
-            (test :shimocha (list (make-instance 'antoi :tile [2p])))
-            (test :tsumo (list (make-instance 'antoi :tile [2p])))
-            (test :tsumo '())))))
+              (apply #'try-make-set-from-tiles hand-tiles args))))
+      (list (test [2p] :kamicha (list (antoi [2p])))
+            (test [2p] :toimen (list (antoi [2p])))
+            (test [2p] :shimocha (list (antoi [2p])))
+            (test [2p] :tsumo (list (antoi [2p])))
+            (test [3p] :tsumo (list (antoi [2p])))
+            (test [4p] :tsumo '())))))

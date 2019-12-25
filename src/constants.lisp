@@ -72,7 +72,7 @@
 
 (define-condition riichi-evaluator-error (error) ())
 
-(defmacro multiple-value-or (&rest forms)
+(defmacro multiple-value-or (&body forms)
   (when forms
     (destructuring-bind (first . rest) forms
       (a:with-gensyms (values primary-value)
