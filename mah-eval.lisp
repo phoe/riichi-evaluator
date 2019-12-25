@@ -299,31 +299,32 @@
                            :element (format nil "~a list" which)
                            :value (type-error-datum c)))))
 
+;;; Set
 
+(defun set-open-closed (set)
+  (first set))
 
+(defun (setf set-open-closed) (newval set)
+  (setf (first set) newval))
 
+(define-condition unknown-kind-of-set (error)
+  ((kind :initarg kind)))
 
+(defun set-open-closed-p (open-closed set)
+  (or (equal open-closed :all)
+      (equal open-closed (first set))))
 
+(defun set-closed-p (set)
+  (equal :closed (first set)))
 
+(defun set-type (set)
+  (second set))
 
+(defun set-kan-p (set)
+  (equal 'kan (set-type set)))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(defun format-set (set)
+  (format nil "(~(~a ~a~)~{ ~a~})" (set-open-closed set) (set-type set) (mapcar #'format-tile (set-tiles set))))
 
 ;;; Hand
 
@@ -351,6 +352,32 @@
        :self-draw self-draw :winning-tile winning-tile
        :tiles tiles :locked-sets locked-sets :free-tiles free-tiles
        :closed closed :riichi riichi :doras doras :ura-doras ura-doras))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (defun parse-hand (seq)
   (labels ((error-ood (which)
@@ -449,33 +476,6 @@
     (loop for m in *pattern-matchers*
           if (match-recursive m tiles)
             nconc it)))
-
-;;; Set
-
-(defun set-open-closed (set)
-  (first set))
-
-(defun (setf set-open-closed) (newval set)
-  (setf (first set) newval))
-
-(define-condition unknown-kind-of-set (error)
-  ((kind :initarg kind)))
-
-(defun set-open-closed-p (open-closed set)
-  (or (equal open-closed :all)
-      (equal open-closed (first set))))
-
-(defun set-closed-p (set)
-  (equal :closed (first set)))
-
-(defun set-type (set)
-  (second set))
-
-(defun set-kan-p (set)
-  (equal 'kan (set-type set)))
-
-(defun format-set (set)
-  (format nil "(~(~a ~a~)~{ ~a~})" (set-open-closed set) (set-type set) (mapcar #'format-tile (set-tiles set))))
 
 ;;; Yaku definition
 

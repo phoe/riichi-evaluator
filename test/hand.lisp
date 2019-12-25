@@ -1,4 +1,4 @@
-;;;; riichi-evaluator.test.asd
+;;;; test/hand.lisp
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -20,21 +20,12 @@
 ;;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ;;;; DEALINGS IN THE SOFTWARE.
 
-(asdf:defsystem #:riichi-evaluator.test
-  :description "Tests for Riichi Mahjong evaluator"
-  :author "Kimmo \"keko\" Kenttälä and Michał \"phoe\" Herda"
-  :maintainer "Michał \"phoe\" Herda <phoe@disroot.org>"
-  :license  "MIT"
-  :version "0.0.1"
-  :serial t
-  :pathname "test"
-  :depends-on (#:alexandria
-               #:parachute
-               #:protest/base
-               #:named-readtables
-               #:riichi-evaluator)
-  :components ((:file "package")
-               (:file "tiles")
-               (:file "set")
-               (:file "hand")
-               ))
+(in-package #:riichi-evaluator.test)
+
+;; (make-instance 'closed-tsumo-hand
+;;                :prevailing-wind :east :seat-wind :east
+;;                :winning-tile [1p]
+;;                :locked-sets '()
+;;                :free-tiles (read-tile-list-from-string "1112345678999p")
+;;                :dora-list '([3p])
+;;                :situations '())

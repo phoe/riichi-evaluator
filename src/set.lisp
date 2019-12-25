@@ -36,9 +36,9 @@
    ;; Condition accessors
    #:open-tile #:tiles #:taken-from
    ;; Protocol
-   #:set #:set-count #:tiles #:same-tile-set
-   #:closed-set #:open-set #:taken-from
-   #:shuntsu #:toitsu #:koutsu #:kantsu #:set=
+   #:set #:set-count #:tiles #:set= #:set-tile-count
+   #:same-tile-set #:closed-set #:open-set #:taken-from
+   #:shuntsu #:toitsu #:koutsu #:kantsu
    ;; Concrete classes
    #:antoi #:mintoi #:anjun #:minjun #:ankou #:minkou
    #:ankan #:daiminkan #:shouminkan
@@ -102,6 +102,8 @@
 
 (defgeneric set= (set-1 set-2)
   (:method (set-1 set-2) nil))
+
+(defgeneric set-tile-count (set))
 
 (defun print-set (set &optional (stream t))
   (case stream
@@ -170,6 +172,11 @@
   (:default-initargs %count 3))
 (p:define-protocol-class kantsu (same-tile-set) ()
   (:default-initargs %count 4))
+
+(defmethod set-tile-count ((set toitsu)) (values 2 0))
+(defmethod set-tile-count ((set koutsu)) (values 3 0))
+(defmethod set-tile-count ((set kantsu)) (values 3 0))
+(defmethod set-tile-count ((set shuntsu)) (values 4 1))
 
 (p:define-protocol-class shuntsu (set)
   ((%lowest-tile :reader shuntsu-lowest-tile :initarg :lowest-tile))
