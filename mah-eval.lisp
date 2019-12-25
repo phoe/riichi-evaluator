@@ -1,4 +1,4 @@
-;;;; src/mah-eval.lisp
+;;; src/mah-eval.lisp
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -353,32 +353,6 @@
        :tiles tiles :locked-sets locked-sets :free-tiles free-tiles
        :closed closed :riichi riichi :doras doras :ura-doras ura-doras))))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 (defun parse-hand (seq)
   (labels ((error-ood (which)
              (error 'invalid-hand
@@ -449,6 +423,32 @@
                                :doras doras
                                :ura-doras ura-doras))))))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ;;; Pattern matchers
 
 (defparameter *pattern-matchers* (list))
@@ -476,8 +476,6 @@
     (loop for m in *pattern-matchers*
           if (match-recursive m tiles)
             nconc it)))
-
-;;; Yaku definition
 
 (defmacro with-hand-helpers (hand-name ord-name &rest forms)
   `(let* ((prevailing-wind (hand-prevailing-wind ,hand-name))
@@ -524,6 +522,10 @@
              (1 2)                      ; closed wait
              (0 (if (= rank 7) 2 0))))) ; edge wait    <7>  8   9
     (t 0)))
+
+(defun seven-unique-pairs (pairs)
+  (and (= 7 (length pairs))
+       (no-identical-sets pairs)))
 
 (defun count-fu (hand ord)
   (with-hand-helpers hand ord
@@ -599,6 +601,8 @@
           (t a)))
       (list 0 0)))
 
+;;; Yaku definition
+
 (defparameter *yaku-matchers* (list))
 (defparameter *yaku-list* (list))
 
@@ -634,15 +638,10 @@
 
 
 
-(defun seven-unique-pairs (pairs)
-  (and (= 7 (length pairs))
-       (no-identical-sets pairs)))
-
 
 (defun ordering-ready-p (hand ord)
   (with-hand-helpers hand ord
-    (let ((chi-pon-kan (+ (count-sets :all 'chi 'pon 'kan)
-                          (* 3 (count-sets :all 'ittsuu))))
+    (let ((chi-pon-kan (count-sets :all 'chi 'pon 'kan))
           (pair (count-sets :all 'pair)))
       (or
        (and (= 4 chi-pon-kan)
@@ -750,13 +749,6 @@
 
 (defun remove-nth (n seq)
   (remove-if (constantly t) seq :start n :count 1))
-
-;; Returns two values; the second is what was found and removed, nil if none.
-(defun remove-if-exists (item seq test)
-  (let ((pos (position item seq :test test)))
-    (if pos
-        (values (remove-nth pos seq) t)
-        (values seq nil))))
 
 (defun find-matching (predicate tiles max-length)
   (if (and tiles

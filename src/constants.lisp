@@ -22,13 +22,18 @@
 
 (defpackage #:riichi-evaluator.constants
   (:use #:cl)
+  (:local-nicknames (#:a #:alexandria))
   (:export
    ;; Variables
    #:*suits* #:*winds* #:*dragons* #:*honors* #:*other-players*
    #:*suit-read-table* #:*wind-read-table* #:*dragon-read-table*
    #:*print-table* #:*lisp-print-table*
    ;; Conditions
-   #:riichi-evaluator-error))
+   #:riichi-evaluator-error
+   ;; Utils
+   #:multiple-value-or
+   ;; Method combinations
+   #:chained-or))
 
 (in-package #:riichi-evaluator.constants)
 
@@ -66,3 +71,18 @@
     (:haku . "WD")  (:hatsu . "GD") (:chun . "RD")))
 
 (define-condition riichi-evaluator-error (error) ())
+
+(defmacro multiple-value-or (&rest forms)
+  (when forms
+    (destructuring-bind (first . rest) forms
+      (a:with-gensyms (values primary-value)
+        `(let* ((,values (multiple-value-list ,first))
+                (,primary-value (first ,values)))
+           (if ,primary-value
+               (values-list ,values)
+               (multiple-value-or ,@rest)))))))
+
+(define-method-combination chained-or ()
+  ((methods *))
+  (let ((calls (mapcar #'(lambda (x) `(call-method ,x)) methods)))
+    `(multiple-value-or ,@calls)))

@@ -115,15 +115,15 @@
 
 ;; TODO validate that there are at most 4 tiles of any given kind in a hand.
 
-(defun check-hand-element-type (hand datum expected-type)
+(defun check-hand-elt-type (hand datum expected-type)
   (unless (typep datum expected-type)
     (error 'invalid-hand-element :hand hand :datum datum
                                  :expected-type expected-type)))
 
-(defun check-hand-element-type-list (hand list expected-type)
-  (check-hand-element-type hand list 'list)
+(defun check-hand-elt-type-list (hand list expected-type)
+  (check-hand-elt-type hand list 'list)
   (dolist (elt list)
-    (check-hand-element-type hand elt expected-type)))
+    (check-hand-elt-type hand elt expected-type)))
 
 (defun check-hand-situations (hand)
   (dolist (situation (situations hand))
@@ -153,28 +153,31 @@
                       :hand hand :tile tile :count count))))
 
 (defmethod initialize-instance :after ((hand hand) &key)
-  (check-hand-element-type hand (prevailing-wind hand) '#.`(member ,@*winds*))
-  (check-hand-element-type hand (seat-wind hand) '#.`(member ,@*winds*))
-  (check-hand-element-type hand (winning-tile hand) 'tile)
-  (check-hand-element-type-list hand (locked-sets hand) 'set)
-  (check-hand-element-type-list hand (free-tiles hand) 'tile)
-  (check-hand-element-type hand (dora-list hand) 'cons)
-  (check-hand-element-type-list hand (dora-list hand) 'tile)
-  (check-hand-element-type-list hand (situations hand)
-                                `(or keyword (cons keyword)))
+  (check-hand-elt-type hand (prevailing-wind hand) '#.`(member ,@*winds*))
+  (check-hand-elt-type hand (seat-wind hand) '#.`(member ,@*winds*))
+  (check-hand-elt-type hand (winning-tile hand) 'tile)
+  (check-hand-elt-type-list hand (locked-sets hand) 'set)
+  (check-hand-elt-type-list hand (free-tiles hand) 'tile)
+  (check-hand-elt-type hand (dora-list hand) 'cons)
+  (check-hand-elt-type-list hand (dora-list hand) 'tile)
+  (check-hand-elt-type-list hand (situations hand) `(or keyword (cons keyword)))
   (check-hand-situations hand)
   (check-tile-count hand)
   (check-at-most-four-tiles-of-a-kind hand))
 
 (p:define-protocol-class tsumo-hand (hand) ())
-(p:define-protocol-class ron-hand (hand) ())
+(p:define-protocol-class ron-hand (hand)
+  ((%losing-player :accessor losing-player :initarg :losing-player))
+  (:default-initargs
+   :losing-player (a:required-argument :losing-player)))
 (p:define-protocol-class open-hand (hand) ())
 (p:define-protocol-class closed-hand (hand)
   ((ura-dora-list :accessor ura-dora-list :initarg :ura-dora-list))
-  (:default-initargs :ura-dora-list '()))
+  (:default-initargs
+   :ura-dora-list '()))
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
-  (check-hand-element-type-list hand (ura-dora-list hand) 'tile))
+  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
   (ura-dora-list hand))
@@ -186,7 +189,7 @@
 (defclass closed-tsumo-hand (closed-hand tsumo-hand) ())
 (defclass closed-ron-hand (closed-hand ron-hand) ())
 
-;;; Situations
+;;; Situations ;; TODO move into yaku definitions
 
 (defgeneric validate-situation (hand situation &rest args)
   (:method-combination progn))
@@ -243,3 +246,4 @@
     (invalid-situation hand situation args
                        "Ippatsu does not accept arguments.")))
 
+;;; Tile orderings
