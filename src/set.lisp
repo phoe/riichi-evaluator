@@ -472,7 +472,7 @@
                                                :rank open-rank)))
                 (minjun tile-1 open-tile taken-from)))))))))
 
-;;; Tile-set matcher ;; TODO test this
+;;; Tile-set matcher
 
 (defun try-make-shuntsu (tiles tile forbidden-sets class tile-count args)
   (declare (ignore tile-count))
@@ -481,13 +481,6 @@
              (and t1 t2 t3
                   (setf set (apply class t1 args))
                   (not (member set forbidden-sets :test #'set=))))
-           (bag-difference (bag-1 bag-2 &key (test 'eql))
-             (loop with result = (copy-list bag-1)
-                   for element in bag-2
-                   if (member element result :test test)
-                     do (setf result (delete element result
-                                             :test test :count 1))
-                   finally (return result)))
            (make-pred (n)
              (lambda (x) (and (suited-p x) (eq (suit tile) (suit x))
                               (= (+ (rank tile) n) (rank x))))))
@@ -509,8 +502,7 @@
   (when (<= tile-count (count tile tiles :test #'tile=))
     (let ((set (apply class tile args)))
       (unless (member set forbidden-sets :test #'set=)
-        (list set (remove tile tiles :count tile-count
-                                     :test #'tile=))))))
+        (list set (remove tile tiles :count tile-count :test #'tile=))))))
 
 (defun try-make-set
     (tiles winning-tile consume-winning-tile-p forbidden-sets class tile-count
@@ -526,7 +518,7 @@
            (a:when-let ((result (funcall make-fn tiles tile forbidden-sets
                                          class tile-count args)))
              (return (append result (list winning-tile)))))))
-    (values nil nil nil)))
+    (values nil tiles winning-tile)))
 
 (defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
   (:method-combination chained-or))
@@ -544,26 +536,25 @@
                             #'try-make-same-tile-set)))
      (define-set-maker-winning-tile-ron (class count)
        `(make (,class "~A-WINNING-TILE-RON")
-              (when (not (eq win-from :tsumo))
-                (try-make-set tiles winning-tile t
-                              forbidden-sets ',class ,count
-                              #'try-make-same-tile-set
-                              win-from))))
+              (if (not (eq win-from :tsumo))
+                  (try-make-set tiles winning-tile t
+                                forbidden-sets ',class ,count
+                                #'try-make-same-tile-set
+                                win-from)
+                  (values nil tiles winning-tile))))
      (define-set-maker-winning-tile-tsumo (class count)
        `(make (,class "~A-WINNING-TILE-TSUMO")
-              (when (eq win-from :tsumo)
-                (try-make-set tiles winning-tile t
-                              forbidden-sets ',class ,count
-                              #'try-make-same-tile-set)))))
+              (if (eq win-from :tsumo)
+                  (try-make-set tiles winning-tile t
+                                forbidden-sets ',class ,count
+                                #'try-make-same-tile-set)
+                  (values nil tiles winning-tile)))))
   (define-set-maker-no-winning-tile antoi 2)
   (define-set-maker-no-winning-tile ankou 3)
-  (define-set-maker-no-winning-tile ankan 4)
   (define-set-maker-winning-tile-ron mintoi 2)
   (define-set-maker-winning-tile-ron minkou 3)
-  (define-set-maker-winning-tile-ron minkan 4)
   (define-set-maker-winning-tile-tsumo antoi 2)
-  (define-set-maker-winning-tile-tsumo ankou 3)
-  (define-set-maker-winning-tile-tsumo ankan 4))
+  (define-set-maker-winning-tile-tsumo ankou 3))
 
 (defmethod try-make-set-from-tiles chained-or :anjun-no-winning-tile
     (tiles winning-tile win-from forbidden-sets)
@@ -572,29 +563,30 @@
 
 (defmethod try-make-set-from-tiles chained-or :minjun-winning-tile-ron
     (tiles winning-tile win-from forbidden-sets)
-  (when (not (eq win-from :tsumo))
-    (try-make-set tiles winning-tile t forbidden-sets 'minjun 3
-                  #'try-make-shuntsu
-                  winning-tile win-from)))
+  (if (not (eq win-from :tsumo))
+      (try-make-set tiles winning-tile t forbidden-sets 'minjun 3
+                    #'try-make-shuntsu
+                    winning-tile win-from)
+      (values nil tiles winning-tile)))
 
 (defmethod try-make-set-from-tiles chained-or :anjun-winning-tile-tsumo
     (tiles winning-tile win-from forbidden-sets)
-  (when (eq win-from :tsumo)
-    (try-make-set tiles winning-tile t forbidden-sets 'anjun 3
-                  #'try-make-shuntsu)))
+  (if (eq win-from :tsumo)
+      (try-make-set tiles winning-tile t forbidden-sets 'anjun 3
+                    #'try-make-shuntsu)
+      (values nil tiles winning-tile)))
 
 (defun poor-mans-test ()
-  (let ((hand-tiles '([2p] [2p] [3p])))
-    (flet ((test (&rest args)
-             (multiple-value-list
-              (apply #'try-make-set-from-tiles hand-tiles args))))
-      (list (test [2p] :kamicha (list (antoi [2p])))
-            (test [2p] :toimen (list (antoi [2p])))
-            (test [2p] :shimocha (list (antoi [2p])))
-            (test [2p] :tsumo (list (antoi [2p])))
-            (test [3p] :tsumo (list (antoi [2p])))
-            (test [4p] :tsumo (list (anjun [2p])))
-            (test [4p] :kamicha (list (antoi [2p])))
-            (test [4p] :toimen (list (antoi [2p])))
-            (test [4p] :shimocha (list (antoi [2p])))
-            (test [4p] :tsumo (list (antoi [2p])))))))
+  (flet ((test (&rest args)
+           (multiple-value-list
+            (apply #'try-make-set-from-tiles args))))
+    (list (test '([2p] [2p] [3p]) [2p] :kamicha (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [2p] :toimen (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [2p] :shimocha (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [2p] :tsumo (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [3p] :tsumo (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [4p] :tsumo (list (anjun [2p])))
+          (test '([2p] [2p] [3p]) [4p] :kamicha (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [4p] :toimen (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [4p] :shimocha (list (antoi [2p])))
+          (test '([2p] [2p] [3p]) [4p] :tsumo (list (antoi [2p]))))))

@@ -22,6 +22,8 @@
 
 (in-package #:riichi-evaluator.test)
 
+(nr:in-readtable :riichi-evaluator)
+
 ;; (make-instance 'closed-tsumo-hand
 ;;                :prevailing-wind :east :seat-wind :east
 ;;                :winning-tile [1p]

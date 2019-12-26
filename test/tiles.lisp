@@ -22,6 +22,8 @@
 
 (in-package #:riichi-evaluator.test)
 
+(nr:in-readtable :riichi-evaluator)
+
 ;;; Protocol classes
 
 (define-test tile-protocol

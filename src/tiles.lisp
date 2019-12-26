@@ -38,8 +38,8 @@
    #:suited-tile #:honor-tile
    ;; Tile list reader and printer
    #:print-tile-list #:read-tile-list #:read-tile-list-from-string
-   ;; Shortname
-   #:make-tile
+   ;; Convenience
+   #:make-tile #:tile-list=
    ))
 
 (in-package #:riichi-evaluator.tiles)
@@ -302,5 +302,13 @@
       ((nil) (with-output-to-string (stream) (thunk stream)))
       (t (thunk stream)))))
 
+;;; Convenience functions
+
 (defun make-tile (string)
   (first (read-tile-list-from-string string)))
+
+(defun tile-list= (list-1 list-2)
+  (and (= (length list-1) (length list-2))
+       (loop for tile-1 in list-1
+             for tile-2 in list-2
+             always (tile= tile-1 tile-2))))
