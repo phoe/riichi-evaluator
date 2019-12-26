@@ -143,12 +143,14 @@
          ,@body))))
 
 (defmacro do-all-minjun ((set) &body body)
-  (a:with-gensyms (tile open-tile)
+  (a:with-gensyms (tile open-tile player)
     `(do-all-shuntsu-lower-tiles (,tile)
        (do-all-shuntsu-tiles (,tile ,open-tile)
-         (let ((,set (make-instance 'rs:minjun :lowest-tile ,tile
-                                               :open-tile ,open-tile)))
-           ,@body)))))
+         (do-all-other-players (,player)
+           (let ((,set (make-instance 'rs:minjun :lowest-tile ,tile
+                                                 :open-tile ,open-tile
+                                                 :taken-from ,player)))
+             ,@body))))))
 
 (defmacro do-all-valid-sets ((set) &body body)
   (a:with-gensyms (thunk)

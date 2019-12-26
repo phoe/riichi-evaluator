@@ -104,13 +104,13 @@
       (fail (make-instance 'rs:anjun :lowest-tile tile)
           'rs:invalid-shuntsu))
     (when (<= rank 7)
-      (do-all-shuntsu-tiles (tile new-tile)
-        (do-all-other-players (player)
-          (unless (eq player :kamicha)
-            (fail (make-instance 'rs:minjun :lowest-tile tile
-                                            :open-tile new-tile
-                                            :taken-from player)
-                'rs:minjun-invalid-meld))))
+      ;; (do-all-shuntsu-tiles (tile new-tile)
+      ;;   (do-all-other-players (player)
+      ;;     (unless (eq player :kamicha)
+      ;;       (fail (make-instance 'rs:minjun :lowest-tile tile
+      ;;                                       :open-tile new-tile
+      ;;                                       :taken-from player)
+      ;;           'rs:minjun-invalid-meld))))
       (do-all-honor-tiles (kind honor-tile)
         (fail (make-instance 'rs:minjun :lowest-tile tile
                                         :open-tile honor-tile
