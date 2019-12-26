@@ -82,9 +82,23 @@
    :count (a:required-argument :count))
   (:report (lambda (condition stream)
              (format stream
-                     "The hand has ~D ~A tiles, but only 4 of them are allowed."
+                     "There are ~D ~A tiles visible, but at most 4 are allowed."
                      (invalid-same-tile-count-count condition)
                      (invalid-same-tile-count-tile condition)))))
+
+(define-condition minjun-invalid-meld (invalid-hand)
+  ((%taken-from :reader minjun-invalid-meld-taken-from :initarg :taken-from)
+   (%set :reader minjun-invalid-meld-set :initarg :set))
+  (:default-initargs
+   :tiles (a:required-argument :tiles)
+   :set (a:required-argument :set))
+  (:report
+   (lambda (condition stream)
+     (format stream "The hand ~A contains a non-winning minjun ~A with a tile ~
+                     taken from ~(~A~) instead of kamicha."
+             (invalid-situation-hand condition)
+             (minjun-invalid-meld-set condition)
+             (minjun-invalid-meld-taken-from condition)))))
 
 ;;; Hand
 
@@ -112,8 +126,6 @@
           (mapcar #'tiles (locked-sets hand))
           (free-tiles hand)
           (dora-list hand)))
-
-;; TODO validate that there are at most 4 tiles of any given kind in a hand.
 
 (defun check-hand-elt-type (hand datum expected-type)
   (unless (typep datum expected-type)
@@ -152,6 +164,14 @@
             do (error 'invalid-same-tile-count
                       :hand hand :tile tile :count count))))
 
+(defun check-locked-minjuns-taken-from-kamicha (hand)
+  (dolist (set (locked-sets hand))
+    (when (typep set 'minjun)
+      (let ((taken-from (taken-from set)))
+        (unless (eq :kamicha taken-from)
+          (error 'minjun-invalid-meld :hand hand :set set
+                                      :taken-from taken-from))))))
+
 (defmethod initialize-instance :after ((hand hand) &key)
   (check-hand-elt-type hand (prevailing-wind hand) '#.`(member ,@*winds*))
   (check-hand-elt-type hand (seat-wind hand) '#.`(member ,@*winds*))
@@ -163,7 +183,8 @@
   (check-hand-elt-type-list hand (situations hand) `(or keyword (cons keyword)))
   (check-hand-situations hand)
   (check-tile-count hand)
-  (check-at-most-four-tiles-of-a-kind hand))
+  (check-at-most-four-tiles-of-a-kind hand)
+  (check-locked-minjuns-taken-from-kamicha hand))
 
 (p:define-protocol-class tsumo-hand (hand) ())
 (p:define-protocol-class ron-hand (hand)
@@ -245,5 +266,3 @@
   (unless (null args)
     (invalid-situation hand situation args
                        "Ippatsu does not accept arguments.")))
-
-;;; Tile orderings

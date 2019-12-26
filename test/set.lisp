@@ -100,22 +100,14 @@
   (do-all-honor-tiles (kind tile)
     (fail (make-instance 'rs:anjun :lowest-tile tile) 'rs:invalid-shuntsu))
   (do-all-suited-tiles (rank suit tile)
-    (when (> rank 7)
-      (fail (make-instance 'rs:anjun :lowest-tile tile)
-          'rs:invalid-shuntsu))
-    (when (<= rank 7)
-      ;; (do-all-shuntsu-tiles (tile new-tile)
-      ;;   (do-all-other-players (player)
-      ;;     (unless (eq player :kamicha)
-      ;;       (fail (make-instance 'rs:minjun :lowest-tile tile
-      ;;                                       :open-tile new-tile
-      ;;                                       :taken-from player)
-      ;;           'rs:minjun-invalid-meld))))
-      (do-all-honor-tiles (kind honor-tile)
-        (fail (make-instance 'rs:minjun :lowest-tile tile
-                                        :open-tile honor-tile
-                                        :taken-from :kamicha)
-            'rs:open-tile-not-in-set)))))
+    (if (> rank 7)
+        (fail (make-instance 'rs:anjun :lowest-tile tile)
+            'rs:invalid-shuntsu)
+        (do-all-honor-tiles (kind honor-tile)
+          (fail (make-instance 'rs:minjun :lowest-tile tile
+                                          :open-tile honor-tile
+                                          :taken-from :kamicha)
+              'rs:open-tile-not-in-set)))))
 
 (define-test set-koutsu-positive
   (do-all-tiles (tile)
@@ -247,6 +239,24 @@
                              :open-tile (rt:make-tile "2p"))
     (test "3*12p" 'rs:minjun :taken-from :kamicha
                              :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "3p"))
+    (test "21*3p" 'rs:minjun :taken-from :toimen
+                             :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "1p"))
+    (test "12*3p" 'rs:minjun :taken-from :toimen
+                             :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "2p"))
+    (test "13*2p" 'rs:minjun :taken-from :toimen
+                             :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "3p"))
+    (test "231*p" 'rs:minjun :taken-from :shimocha
+                             :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "1p"))
+    (test "132*p" 'rs:minjun :taken-from :shimocha
+                             :lowest-tile (rt:make-tile "1p")
+                             :open-tile (rt:make-tile "2p"))
+    (test "123*p" 'rs:minjun :taken-from :shimocha
+                             :lowest-tile (rt:make-tile "1p")
                              :open-tile (rt:make-tile "3p"))))
 
 (define-test read-set-negative
@@ -275,6 +285,3 @@
             (is rs:set= set-1 set-2)
             (isnt rs:set= set-1 set-2))))
     (fresh-line)))
-
-(define-test foo
-  (is = (+ 2 2) 4))

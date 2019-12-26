@@ -31,7 +31,7 @@
   (:export
    ;; Conditions
    #:invalid-set-element #:invalid-tile-taken-from #:open-tile-not-in-set
-   #:invalid-shuntsu ;; #:minjun-invalid-meld
+   #:invalid-shuntsu
    #:set-reader-error #:offending-string
    ;; Condition accessors
    #:open-tile #:tiles #:taken-from
@@ -77,18 +77,6 @@
             (error-type (if (suited-p tile) "lowest" "honor")))
        (format stream "Attempted to make a shuntsu with ~A tile ~A."
                error-type tile)))))
-
-;; (define-condition minjun-invalid-meld (riichi-evaluator-error)
-;;   ((%taken-from :reader taken-from :initarg :taken-from)
-;;    (%set :reader set :initarg :set))
-;;   (:default-initargs
-;;    :tiles (a:required-argument :tiles)
-;;    :set (a:required-argument :set))
-;;   (:report
-;;    (lambda (condition stream)
-;;      (format stream "Attempted to make a minjun ~A with tile taken from ~A ~
-;;                      instead of kami-cha."
-;;              (set condition) (taken-from condition)))))
 
 (define-condition set-reader-error (riichi-evaluator-error)
   ((%offending-string :initarg :offending-string :accessor offending-string))
@@ -244,7 +232,7 @@
 (defclass minjun (shuntsu open-set)
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
-   :taken-from :kamicha ;; TODO test this default initarg
+   :taken-from :kamicha
    :open-tile (a:required-argument :open-tile)))
 (defun minjun (lowest-tile open-tile taken-from)
   (make-instance 'minjun :lowest-tile lowest-tile
@@ -258,8 +246,6 @@
       (unless (member tile tiles :test #'tile=)
         (error 'open-tile-not-in-set :open-tile tile :tiles tiles))))
   (let ((taken-from (taken-from set)))
-    ;; (unless (eq :kamicha taken-from)
-    ;;   (error 'minjun-invalid-meld :taken-from taken-from :set set))
     (unless (member taken-from *other-players*)
       (error 'invalid-tile-taken-from
              :datum taken-from
@@ -459,45 +445,88 @@
 
 (defmethod try-read-set chained-or :minjun ((string string))
   (destructure-string (c1 c2 c3 c4 c5) string
-    (when (char= #\* c2)
-      (a:when-let ((rank-1 (digit-char-p c1))
-                   (rank-2 (digit-char-p c3))
-                   (rank-3 (digit-char-p c4))
-                   (suit (a:rassoc-value *print-table* c5)))
-        (unless (eq suit :honor)
-          (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
-                                        :suit suit :rank)
-                               (list rank-1 rank-2 rank-3))))
-            (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
-              (when (and (tile-consec-p tile-1 tile-2)
-                         (tile-consec-p tile-2 tile-3))
-                (let ((open-tile (make-instance 'suited-tile
-                                                :suit suit
-                                                :rank rank-1)))
-                  (minjun tile-1 open-tile :kamicha))))))))))
+    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
+                                    ((char= #\* c3) :toimen)
+                                    ((char= #\* c4) :shimocha)))
+                  (rank-1 (digit-char-p c1))
+                  (rank-2 (case taken-from
+                            (:kamicha (digit-char-p c3))
+                            ((:toimen :shimocha) (digit-char-p c2))))
+                  (rank-3 (case taken-from
+                            ((:kamicha :toimen) (digit-char-p c4))
+                            (:shimocha (digit-char-p c3))))
+                  (suit (a:rassoc-value *print-table* c5)))
+      (unless (eq suit :honor)
+        (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
+                                      :suit suit :rank)
+                             (list rank-1 rank-2 rank-3))))
+          (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
+            (when (and (tile-consec-p tile-1 tile-2)
+                       (tile-consec-p tile-2 tile-3))
+              (let* ((open-rank (case taken-from
+                                  (:kamicha rank-1)
+                                  (:toimen rank-2)
+                                  (:shimocha rank-3)))
+                     (open-tile (make-instance 'suited-tile
+                                               :suit suit
+                                               :rank open-rank)))
+                (minjun tile-1 open-tile taken-from)))))))))
 
 ;;; Tile-set matcher ;; TODO test this
 
-(defun try-make-same-tile-set-from-tiles
+(defun try-make-shuntsu (tiles tile forbidden-sets class tile-count args)
+  (declare (ignore tile-count))
+  (let (set)
+    (flet ((tiles-found-p (t1 t2 t3)
+             (and t1 t2 t3
+                  (setf set (apply class t1 args))
+                  (not (member set forbidden-sets :test #'set=))))
+           (bag-difference (bag-1 bag-2 &key (test 'eql))
+             (loop with result = (copy-list bag-1)
+                   for element in bag-2
+                   if (member element result :test test)
+                     do (setf result (delete element result
+                                             :test test :count 1))
+                   finally (return result)))
+           (make-pred (n)
+             (lambda (x) (and (suited-p x) (eq (suit tile) (suit x))
+                              (= (+ (rank tile) n) (rank x))))))
+      (let* ((2- (find-if (make-pred -2) tiles))
+             (1- (find-if (make-pred -1) tiles))
+             (1+ (find-if (make-pred 1) tiles))
+             (2+ (find-if (make-pred 2) tiles)))
+        (cond ((tiles-found-p 2- 1- tile)
+               (list set (bag-difference tiles (list 2- 1- tile)
+                                         :test #'tile=)))
+              ((tiles-found-p 1- tile 1+)
+               (list set (bag-difference tiles (list 1- tile 1+)
+                                         :test #'tile=)))
+              ((tiles-found-p tile 1+ 2+)
+               (list set (bag-difference tiles (list tile 1+ 2+)
+                                         :test #'tile=))))))))
+
+(defun try-make-same-tile-set (tiles tile forbidden-sets class tile-count args)
+  (when (<= tile-count (count tile tiles :test #'tile=))
+    (let ((set (apply class tile args)))
+      (unless (member set forbidden-sets :test #'set=)
+        (list set (remove tile tiles :count tile-count
+                                     :test #'tile=))))))
+
+(defun try-make-set
     (tiles winning-tile consume-winning-tile-p forbidden-sets class tile-count
-     &rest args)
-  (flet ((try (tiles tile forbidden-sets class tile-count args)
-           (when (<= tile-count (count tile tiles :test #'tile=))
-             (let ((set (apply #'make-instance class :tile tile args)))
-               (unless (member set forbidden-sets :test #'set=)
-                 (list set (remove tile tiles :count tile-count
-                                              :test #'tile=)))))))
-    (multiple-value-or
-      (values-list
-       (if consume-winning-tile-p
-           (a:when-let ((result (try (cons winning-tile tiles) winning-tile
-                                     forbidden-sets class tile-count args)))
-             (append result (list winning-tile)))
-           (dolist (tile tiles)
-             (a:when-let ((result (try tiles tile forbidden-sets
-                                       class tile-count args)))
-               (return (append result (list winning-tile)))))))
-      (values nil nil nil))))
+     make-fn &rest args)
+  (multiple-value-or
+    (values-list
+     (if consume-winning-tile-p
+         (a:when-let ((result (funcall make-fn
+                                       (cons winning-tile tiles) winning-tile
+                                       forbidden-sets class tile-count args)))
+           (append result (list nil)))
+         (dolist (tile tiles)
+           (a:when-let ((result (funcall make-fn tiles tile forbidden-sets
+                                         class tile-count args)))
+             (return (append result (list winning-tile)))))))
+    (values nil nil nil)))
 
 (defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
   (:method-combination chained-or))
@@ -510,22 +539,22 @@
             ,@body)))
      (define-set-maker-no-winning-tile (class count)
        `(make (,class "~A-NO-WINNING-TILE")
-              (try-make-same-tile-set-from-tiles
-               tiles winning-tile nil
-               forbidden-sets ',class ,count)))
+              (try-make-set tiles winning-tile nil
+                            forbidden-sets ',class ,count
+                            #'try-make-same-tile-set)))
      (define-set-maker-winning-tile-ron (class count)
        `(make (,class "~A-WINNING-TILE-RON")
               (when (not (eq win-from :tsumo))
-                (try-make-same-tile-set-from-tiles
-                 tiles winning-tile t
-                 forbidden-sets ',class ,count
-                 :taken-from win-from))))
+                (try-make-set tiles winning-tile t
+                              forbidden-sets ',class ,count
+                              #'try-make-same-tile-set
+                              win-from))))
      (define-set-maker-winning-tile-tsumo (class count)
        `(make (,class "~A-WINNING-TILE-TSUMO")
               (when (eq win-from :tsumo)
-                (try-make-same-tile-set-from-tiles
-                 tiles winning-tile t
-                 forbidden-sets ',class ,count)))))
+                (try-make-set tiles winning-tile t
+                              forbidden-sets ',class ,count
+                              #'try-make-same-tile-set)))))
   (define-set-maker-no-winning-tile antoi 2)
   (define-set-maker-no-winning-tile ankou 3)
   (define-set-maker-no-winning-tile ankan 4)
@@ -536,87 +565,23 @@
   (define-set-maker-winning-tile-tsumo ankou 3)
   (define-set-maker-winning-tile-tsumo ankan 4))
 
-;;; Shuntsu
-
-;; DONE rework minjun implementation - it is possible to take the last minjun
-;; from anyone, not just kamicha.
-;; DONE write tests for this.
-;; TODO move the checks for this from set to hand.
-;; TODO write the tests for that check in hand.
-;; TODO remove the commented out code.
-
-(defun try-make-shuntsu-from-tiles
-    (tiles winning-tile consume-winning-tile-p forbidden-sets class
-     &rest args)
-  (flet ((try (tiles tile forbidden-sets class tile-count args)
-           (declare (ignore tile-count))
-           (let ((suit (suit tile))
-                 (rank (rank tile))
-                 set)
-             (flet ((tiles-found-p (t1 t2 t3)
-                      (and t1 t2 t3
-                           (setf set (apply #'make-instance class
-                                            :lowest-tile t1 args))
-                           (not (member set forbidden-sets :test #'set=))))
-                    (bag-difference (bag-1 bag-2 &key (test 'eql))
-                      (loop with result = (copy-list bag-1)
-                            for element in bag-2
-                            if (member element result :test test)
-                              do (setf result (delete element result
-                                                      :test test :count 1))
-                            finally (return result)))
-                    (make-pred (n)
-                      (lambda (x) (and (suited-p x) (eq suit (suit x))
-                                       (= (+ rank n) (rank x))))))
-               (let* ((2- (find-if (make-pred -2) tiles))
-                      (1- (find-if (make-pred -1) tiles))
-                      (1+ (find-if (make-pred 1) tiles))
-                      (2+ (find-if (make-pred 2) tiles)))
-                 (cond ((tiles-found-p 2- 1- tile)
-                        (list set (bag-difference tiles (list 2- 1- tile)
-                                                  :test #'tile=)))
-                       ((tiles-found-p 1- tile 1+)
-                        (list set (bag-difference tiles (list 1- tile 1+)
-                                                  :test #'tile=)))
-                       ((tiles-found-p tile 1+ 2+)
-                        (list set (bag-difference tiles (list tile 1+ 2+)
-                                                  :test #'tile=)))))))
-           ;; (when (<= tile-count (count tile tiles :test #'tile=))
-           ;;   (let ((set (apply #'make-instance class :tile tile args)))
-           ;;     (unless (member set forbidden-sets :test #'set=)
-           ;;       (list set (remove tile tiles :count tile-count
-           ;;                                    :test #'tile=)))))
-           ))
-    ;; TODO factor this out elsewhere
-    (multiple-value-or
-      (values-list
-       (if consume-winning-tile-p
-           (a:when-let ((result (try (cons winning-tile tiles) winning-tile
-                                     forbidden-sets class nil args)))
-             (append result (list winning-tile)))
-           (dolist (tile tiles)
-             (a:when-let ((result (try tiles tile forbidden-sets
-                                       class nil args)))
-               (return (append result (list winning-tile)))))))
-      (values nil nil nil))))
+(defmethod try-make-set-from-tiles chained-or :anjun-no-winning-tile
+    (tiles winning-tile win-from forbidden-sets)
+  (try-make-set tiles winning-tile nil forbidden-sets 'anjun 3
+                #'try-make-shuntsu))
 
 (defmethod try-make-set-from-tiles chained-or :minjun-winning-tile-ron
     (tiles winning-tile win-from forbidden-sets)
   (when (not (eq win-from :tsumo))
-    (try-make-shuntsu-from-tiles
-     tiles winning-tile t forbidden-sets 'minjun
-     :taken-from win-from :open-tile winning-tile)))
-
-(defmethod try-make-set-from-tiles chained-or :anjun-no-winning-tile
-    (tiles winning-tile win-from forbidden-sets)
-  (try-make-shuntsu-from-tiles
-   tiles winning-tile nil forbidden-sets 'anjun))
+    (try-make-set tiles winning-tile t forbidden-sets 'minjun 3
+                  #'try-make-shuntsu
+                  winning-tile win-from)))
 
 (defmethod try-make-set-from-tiles chained-or :anjun-winning-tile-tsumo
     (tiles winning-tile win-from forbidden-sets)
   (when (eq win-from :tsumo)
-    (try-make-shuntsu-from-tiles
-     tiles winning-tile t forbidden-sets 'anjun)))
+    (try-make-set tiles winning-tile t forbidden-sets 'anjun 3
+                  #'try-make-shuntsu)))
 
 (defun poor-mans-test ()
   (let ((hand-tiles '([2p] [2p] [3p])))
