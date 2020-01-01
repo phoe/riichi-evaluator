@@ -27,6 +27,8 @@
 
 (defmethod validate-situation progn
     (hand situation &rest args)
+  ;; TODO: In case of no riichi, verify that the list of ura doras is empty.
+  ;; How exactly do we achieve that? Dunno. Probably here.
   (when (null (compute-applicable-methods
                #'validate-situation (list* hand situation args)))
     (invalid-situation hand situation args "Unknown situation ~S." situation)))
@@ -35,6 +37,8 @@
 
 (defmethod validate-situation progn
     (hand (situation (eql :riichi)) &rest args)
+  ;; TODO: in case of riichi, verify that the list of ura doras is as long as
+  ;; the list of doras.
   (unless (null args)
     (invalid-situation hand situation args
                        "Riichi does not accept arguments.")))

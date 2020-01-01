@@ -121,6 +121,7 @@
    (%winning-tile :accessor winning-tile :initarg :winning-tile)
    (%locked-sets :accessor locked-sets :initarg :locked-sets)
    (%free-tiles :accessor free-tiles :initarg :free-tiles)
+   ;; TODO: verify that the length of the list of doras is between 1 and 5.
    (%dora-list :accessor dora-list :initarg :dora-list)
    (%situations :accessor situations :initarg :situations))
   (:default-initargs
@@ -223,9 +224,6 @@
    :ura-dora-list '()))
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
-  ;; TODO: in case of riichi, verify that the list of ura doras is as long as
-  ;; the list of doras. In case of no riichi, verify that the list of ura doras
-  ;; is empty.
   (check-hand-elt-type-list hand (ura-dora-list hand) 'tile))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
