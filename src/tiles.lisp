@@ -309,6 +309,6 @@
 
 (defun tile-list= (list-1 list-2)
   (and (= (length list-1) (length list-2))
-       (loop for tile-1 in list-1
-             for tile-2 in list-2
+       (loop for tile-1 in (sort (copy-list list-1) #'tile<)
+             for tile-2 in (sort (copy-list list-2) #'tile<)
              always (tile= tile-1 tile-2))))

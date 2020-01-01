@@ -31,7 +31,8 @@
   (let* ((known-keys '(:class :prevailing-wind :seat-wind :winning-tile
                        :locked-sets :free-tiles :dora-list :situations))
          (other-keys (apply #'a:remove-from-plist args known-keys)))
-    (apply #'make-instance (or class 'rh:closed-tsumo-hand)
+    (apply #'make-instance
+           (or class 'rh:closed-tsumo-hand)
            :prevailing-wind (or prevailing-wind :east)
            :seat-wind (or seat-wind :east)
            :winning-tile (or winning-tile [1p])
@@ -83,3 +84,45 @@
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
          :locked-sets (list (rs:read-set-from-string "456*p")))
       'rh:minjun-invalid-meld))
+
+;; (make-instance 'closed-tsumo-hand
+;;                :prevailing-wind :east :seat-wind :east
+;;                :winning-tile [1p]
+;;                :locked-sets '()
+;;                :free-tiles (read-tile-list-from-string "1112345678999p")
+;;                :dora-list '([3p])
+;;                :situations '())
+
+(define-test hand-positive
+  (dolist (args '((:class rh:closed-tsumo-hand)
+                  (:class rh:closed-ron-hand
+                   :losing-player :toimen)
+                  (:class rh:open-tsumo-hand)
+                  (:class rh:open-ron-hand
+                   :losing-player :toimen)))
+    (let ((expected-hand
+            '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
+              [6p] [7p] [8p] [9p] [9p] [9p]))
+          (expected-visible-tiles
+            '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
+              [6p] [7p] [8p] [9p] [9p] [9p]
+              [1p] [3p]))
+          (hand (apply #'make-test-hand args)))
+      (is eq :east (rh:prevailing-wind hand))
+      (is eq :east (rh:seat-wind hand))
+      (is rt:tile= [1p] (rh:winning-tile hand))
+      (is eq '() (rh:locked-sets hand))
+      (is rt:tile-list= '([3p]) (rh:dora-list hand))
+      (is eq '() (rh:situations hand))
+      (is rt:tile-list= expected-hand (rh:free-tiles hand))
+      (is rt:tile-list= expected-visible-tiles
+          (rh:hand-total-visible-tiles hand))
+      (typecase hand
+        (rh:closed-tsumo-hand
+         (is eq '() (rh:ura-dora-list hand)))
+        (rh:closed-ron-hand
+         (is eq :toimen (rh:losing-player hand))
+         (is eq '() (rh:ura-dora-list hand)))
+        (rh:open-tsumo-hand)
+        (rh:open-ron-hand
+         (is eq :toimen (rh:losing-player hand)))))))

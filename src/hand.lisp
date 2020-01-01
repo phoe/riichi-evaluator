@@ -38,6 +38,7 @@
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
    #:validate-situation
    #:tsumo-hand #:ron-hand #:open-hand #:closed-hand
+   #:ura-dora-list #:losing-player
    ;; Concrete classes
    #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
    ))
@@ -212,7 +213,8 @@
    :losing-player (a:required-argument :losing-player)))
 
 (defmethod initialize-instance :after ((hand ron-hand) &key)
-  (check-hand-elt-type hand (losing-player hand) '#.`(member ,@*other-players*)))
+  (check-hand-elt-type hand (losing-player hand)
+                       '#.`(member ,@*other-players*)))
 
 (p:define-protocol-class open-hand (hand) ())
 (p:define-protocol-class closed-hand (hand)
@@ -235,6 +237,27 @@
 (defclass open-ron-hand (ron-hand open-hand) ())
 (defclass closed-tsumo-hand (tsumo-hand closed-hand) ())
 (defclass closed-ron-hand (ron-hand closed-hand) ())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;;; Situations
 
