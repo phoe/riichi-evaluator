@@ -173,21 +173,6 @@
 
 ;;; Tile and tile list reader and printer
 
-(defparameter *tile-reader-data*
-  "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
-    [1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]
-    [1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s] [9s]
-    [EW] [SW] [WW] [NW] [WD] [GD] [RD])")
-
-(defparameter *tile-list-reader-data*
-  "123456789m123456789p123456789s1234567z")
-
-(defparameter *make-tile-data*
-  '("1m" "2m" "3m" "4m" "5m" "6m" "7m" "8m" "9m"
-    "1p" "2p" "3p" "4p" "5p" "6p" "7p" "8p" "9p"
-    "1s" "2s" "3s" "4s" "5s" "6s" "7s" "8s" "9s"
-    "1z" "2z" "3z" "4z" "5z" "6z" "7z"))
-
 (defun tile-read-print-test (read-fn print-fn re-read-fn)
   (let* ((*readtable* (nr:find-readtable :riichi-evaluator))
          (tiles-1 (uiop:while-collecting (collect)
@@ -205,17 +190,32 @@
             for tile-3 in tiles-3
             do (is rt:tile= tile-1 tile-3)))))
 
+(defparameter *tile-reader-data*
+  "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
+    [1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]
+    [1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s] [9s]
+    [EW] [SW] [WW] [NW] [WD] [GD] [RD])")
+
 (define-test tile-reader
   (tile-read-print-test
    (lambda () (read-from-string *tile-reader-data*))
    (lambda (tiles) (prin1-to-string tiles))
    (lambda (string) (read-from-string string))))
 
+(defparameter *tile-list-reader-data*
+  "123456789m123456789p123456789s1234567z")
+
 (define-test tile-list-reader
   (tile-read-print-test
    (lambda () (rt:read-tile-list-from-string *tile-list-reader-data*))
    (lambda (tiles) (rt:print-tile-list tiles nil))
    (lambda (string) (rt:read-tile-list-from-string string))))
+
+(defparameter *make-tile-data*
+  '("1m" "2m" "3m" "4m" "5m" "6m" "7m" "8m" "9m"
+    "1p" "2p" "3p" "4p" "5p" "6p" "7p" "8p" "9p"
+    "1s" "2s" "3s" "4s" "5s" "6s" "7s" "8s" "9s"
+    "1z" "2z" "3z" "4z" "5z" "6z" "7z"))
 
 (define-test make-tile
   (tile-read-print-test

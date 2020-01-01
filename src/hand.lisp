@@ -28,18 +28,30 @@
   (:shadowing-import-from #:riichi-evaluator.set
                           #:set)
   (:local-nicknames (#:a #:alexandria)
-                    (#:p #:protest/base)))
+                    (#:p #:protest/base))
+  (:export
+   ;; Conditions
+   #:invalid-hand #:invalid-hand-element #:invalid-situation
+   #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
+   ;; Protocol
+   #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
+   #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
+   #:validate-situation
+   #:tsumo-hand #:ron-hand #:open-hand #:closed-hand
+   ;; Concrete classes
+   #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
+   ))
 
 (in-package #:riichi-evaluator.hand)
 
 ;;; Conditions
 
 (define-condition invalid-hand (riichi-evaluator-error)
-  ((%hand :reader invalid-situation-hand :initarg :hand))
+  ((%hand :reader invalid-hand-hand :initarg :hand))
   (:default-initargs
    :hand (a:required-argument :hand)))
 
-(define-condition invalid-hand-element (type-error riichi-evaluator-error) ())
+(define-condition invalid-hand-element (invalid-hand type-error) ())
 
 (define-condition invalid-situation (invalid-hand simple-condition)
   ((%situation :reader invalid-situation-situation :initarg :situation))
@@ -96,7 +108,7 @@
    (lambda (condition stream)
      (format stream "The hand ~A contains a non-winning minjun ~A with a tile ~
                      taken from ~(~A~) instead of kamicha."
-             (invalid-situation-hand condition)
+             (invalid-hand-hand condition)
              (minjun-invalid-meld-set condition)
              (minjun-invalid-meld-taken-from condition)))))
 
@@ -123,9 +135,12 @@
 
 (defmethod hand-total-visible-tiles append ((hand hand))
   (append (list (winning-tile hand))
-          (mapcar #'tiles (locked-sets hand))
+          (a:mappend #'tiles (locked-sets hand))
           (free-tiles hand)
           (dora-list hand)))
+
+(defgeneric validate-situation (hand situation &rest args)
+  (:method-combination progn))
 
 (defun check-hand-elt-type (hand datum expected-type)
   (unless (typep datum expected-type)
@@ -180,24 +195,35 @@
   (check-hand-elt-type-list hand (free-tiles hand) 'tile)
   (check-hand-elt-type hand (dora-list hand) 'cons)
   (check-hand-elt-type-list hand (dora-list hand) 'tile)
-  (check-hand-elt-type-list hand (situations hand) `(or keyword (cons keyword)))
-  (check-hand-situations hand)
-  (check-tile-count hand)
-  (check-at-most-four-tiles-of-a-kind hand)
-  (check-locked-minjuns-taken-from-kamicha hand))
+  (check-hand-elt-type-list hand (situations hand)
+                            `(or keyword (cons keyword))))
+
+(defmethod initialize-instance :around ((hand hand) &key)
+  (prog1 (call-next-method)
+    (check-hand-situations hand)
+    (check-tile-count hand)
+    (check-at-most-four-tiles-of-a-kind hand)
+    (check-locked-minjuns-taken-from-kamicha hand)))
 
 (p:define-protocol-class tsumo-hand (hand) ())
 (p:define-protocol-class ron-hand (hand)
   ((%losing-player :accessor losing-player :initarg :losing-player))
   (:default-initargs
    :losing-player (a:required-argument :losing-player)))
+
+(defmethod initialize-instance :after ((hand ron-hand) &key)
+  (check-hand-elt-type hand (losing-player hand) '#.`(member ,@*other-players*)))
+
 (p:define-protocol-class open-hand (hand) ())
 (p:define-protocol-class closed-hand (hand)
-  ((ura-dora-list :accessor ura-dora-list :initarg :ura-dora-list))
+  ((%ura-dora-list :accessor ura-dora-list :initarg :ura-dora-list))
   (:default-initargs
    :ura-dora-list '()))
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
+  ;; TODO: in case of riichi, verify that the list of ura doras is as long as
+  ;; the list of doras. In case of no riichi, verify that the list of ura doras
+  ;; is empty.
   (check-hand-elt-type-list hand (ura-dora-list hand) 'tile))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
@@ -205,15 +231,15 @@
 
 ;;; Concrete classes
 
-(defclass open-tsumo-hand (open-hand tsumo-hand) ())
-(defclass open-ron-hand (open-hand ron-hand) ())
-(defclass closed-tsumo-hand (closed-hand tsumo-hand) ())
-(defclass closed-ron-hand (closed-hand ron-hand) ())
+(defclass open-tsumo-hand (tsumo-hand open-hand) ())
+(defclass open-ron-hand (ron-hand open-hand) ())
+(defclass closed-tsumo-hand (tsumo-hand closed-hand) ())
+(defclass closed-ron-hand (ron-hand closed-hand) ())
 
-;;; Situations ;; TODO move into yaku definitions
+;;; Situations
 
-(defgeneric validate-situation (hand situation &rest args)
-  (:method-combination progn))
+;; TODO move into yaku definitions
+;; TODO invalid-situation tests
 
 (defmethod validate-situation progn
     (hand situation &rest args)
