@@ -529,59 +529,40 @@
 (defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
   (:method-combination chained-or))
 
-;; NOTE: The -NO-WINNING-TILE functions are named this way because
-;; they do not consume the winning tile, even though that they still
-;; require the winning tile passed to them. It is illegal to pass
-;; a NIL in place of a winning tile to these functions.
 (macrolet
-    ((make ((class format-control) &body body)
-       (let ((name (a:format-symbol :keyword format-control class)))
-         `(defmethod try-make-set-from-tiles chained-or ,name
-            (tiles winning-tile win-from forbidden-sets)
-            ,@body)))
-     (define-set-maker-no-winning-tile (class count)
-       `(make (,class "~A-NO-WINNING-TILE")
+    ((make ((class kind) &body body)
+       `(defmethod try-make-set-from-tiles chained-or ,class ,kind
+          (tiles winning-tile win-from forbidden-sets)
+          ,@body))
+     (make-set-maker-free-tiles-only (class count make-fn)
+       `(make (,class :free-tiles-only)
               (try-make-set tiles winning-tile nil
                             forbidden-sets ',class ,count
-                            #'try-make-same-tile-set)))
-     (define-set-maker-winning-tile-ron (class count)
-       `(make (,class "~A-WINNING-TILE-RON")
-              (if (and winning-tile (not (eq win-from :tsumo)))
-                  (try-make-set tiles winning-tile t
-                                forbidden-sets ',class ,count
-                                #'try-make-same-tile-set
-                                win-from)
-                  (values nil tiles winning-tile))))
-     (define-set-maker-winning-tile-tsumo (class count)
-       `(make (,class "~A-WINNING-TILE-TSUMO")
+                            ,make-fn)))
+     (make-set-maker-winning-tile-tsumo (class count make-fn)
+       `(make (,class :winning-tile-tsumo)
               (if (and winning-tile (eq win-from :tsumo))
                   (try-make-set tiles winning-tile t
                                 forbidden-sets ',class ,count
-                                #'try-make-same-tile-set)
+                                ,make-fn)
+                  (values nil tiles winning-tile))))
+     (make-set-maker-winning-tile-ron (class count make-fn &rest args)
+       `(make (,class :winning-tile-ron)
+              (if (and winning-tile (not (eq win-from :tsumo)))
+                  (try-make-set tiles winning-tile t
+                                forbidden-sets ',class ,count
+                                ,make-fn
+                                ,@args)
                   (values nil tiles winning-tile)))))
-  (define-set-maker-no-winning-tile antoi 2)
-  (define-set-maker-no-winning-tile ankou 3)
-  (define-set-maker-winning-tile-ron mintoi 2)
-  (define-set-maker-winning-tile-ron minkou 3)
-  (define-set-maker-winning-tile-tsumo antoi 2)
-  (define-set-maker-winning-tile-tsumo ankou 3))
-
-(defmethod try-make-set-from-tiles chained-or :anjun-no-winning-tile
-    (tiles winning-tile win-from forbidden-sets)
-  (try-make-set tiles winning-tile nil forbidden-sets 'anjun 3
-                #'try-make-shuntsu))
-
-(defmethod try-make-set-from-tiles chained-or :minjun-winning-tile-ron
-    (tiles winning-tile win-from forbidden-sets)
-  (if (and winning-tile (not (eq win-from :tsumo)))
-      (try-make-set tiles winning-tile t forbidden-sets 'minjun 3
-                    #'try-make-shuntsu
-                    winning-tile win-from)
-      (values nil tiles winning-tile)))
-
-(defmethod try-make-set-from-tiles chained-or :anjun-winning-tile-tsumo
-    (tiles winning-tile win-from forbidden-sets)
-  (if (and winning-tile (eq win-from :tsumo))
-      (try-make-set tiles winning-tile t forbidden-sets 'anjun 3
-                    #'try-make-shuntsu)
-      (values nil tiles winning-tile)))
+  (make-set-maker-free-tiles-only antoi 2 #'try-make-same-tile-set)
+  (make-set-maker-free-tiles-only ankou 3 #'try-make-same-tile-set)
+  (make-set-maker-free-tiles-only anjun 3 #'try-make-shuntsu)
+  (make-set-maker-winning-tile-tsumo antoi 2 #'try-make-same-tile-set)
+  (make-set-maker-winning-tile-tsumo ankou 3 #'try-make-same-tile-set)
+  (make-set-maker-winning-tile-tsumo anjun 3 #'try-make-shuntsu)
+  (make-set-maker-winning-tile-ron mintoi 2 #'try-make-same-tile-set
+                                   win-from)
+  (make-set-maker-winning-tile-ron minkou 3 #'try-make-same-tile-set
+                                   win-from)
+  (make-set-maker-winning-tile-ron minjun 3 #'try-make-shuntsu
+                                   winning-tile win-from))

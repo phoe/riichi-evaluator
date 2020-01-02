@@ -56,6 +56,8 @@
   (:default-initargs
    :hand (a:required-argument :hand)))
 
+;;; TODO: we need more descriptive conditions instead of ones with standard
+;;; type error messages.
 (define-condition invalid-hand-element (invalid-hand type-error) ())
 
 (define-condition invalid-dora-list-length (invalid-hand)
@@ -147,6 +149,8 @@
   ((%prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
    (%seat-wind :accessor seat-wind :initarg :seat-wind)
    (%winning-tile :accessor winning-tile :initarg :winning-tile)
+   ;; TODO: make it impossible to have antoi/anjun/ankou in locked sets.
+   ;; TODO: write tests for it.
    (%locked-sets :accessor locked-sets :initarg :locked-sets)
    (%free-tiles :accessor free-tiles :initarg :free-tiles)
    (%dora-list :accessor dora-list :initarg :dora-list)
@@ -226,7 +230,10 @@
   (check-hand-elt-type hand (prevailing-wind hand) '#.`(member ,@*winds*))
   (check-hand-elt-type hand (seat-wind hand) '#.`(member ,@*winds*))
   (check-hand-elt-type hand (winning-tile hand) 'tile)
-  (check-hand-elt-type-list hand (locked-sets hand) 'set)
+  (check-hand-elt-type-list hand (locked-sets hand)
+                            '(and set
+                              ;; TODO: separate this into a new check.
+                              (not (or antoi anjun ankou))))
   (check-hand-elt-type-list hand (free-tiles hand) 'tile)
   (check-hand-elt-type hand (dora-list hand) 'list)
   (check-hand-elt-type-list hand (dora-list hand) 'tile 1 5)
@@ -284,12 +291,15 @@
 ;;; Ordering finder
 
 (defun find-orderings (hand)
-  (let ((tiles (free-tiles hand))
-        (winning-tile (winning-tile hand))
-        (win-from (etypecase hand
-                    (closed-hand :tsumo)
-                    (open-hand (taken-from hand)))))
-    (%find-orderings tiles winning-tile win-from '())))
+  (let* ((tiles (free-tiles hand))
+         (winning-tile (winning-tile hand))
+         (win-from (etypecase hand
+                     (closed-hand :tsumo)
+                     (open-hand (taken-from hand))))
+         (possible-orderings (%find-orderings tiles winning-tile win-from '()))
+         ;; TODO: only return the orderings that form a mahjong hand.
+         (orderings possible-orderings))
+    orderings))
 
 (defun %find-orderings (tiles winning-tile win-from forbidden-sets
                         &optional winning-set (other-sets '()))

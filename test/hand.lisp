@@ -24,6 +24,9 @@
 
 (nr:in-readtable :riichi-evaluator)
 
+;;; TODO: a test suite that checks all the error messages available from the
+;;;       external API.
+
 (defun make-test-hand (&rest args
                        &key
                          (class 'rh:closed-tsumo-hand)
@@ -33,7 +36,6 @@
                          (free-tiles
                           (rt:read-tile-list-from-string "1112345678999p"))
                          (dora-list '([3p]))
-                         (ura-dora-list '())
                          (situations '())
                        &allow-other-keys)
   (let* ((known-keys '(:class :prevailing-wind :seat-wind :winning-tile
@@ -43,8 +45,7 @@
            :prevailing-wind prevailing-wind :seat-wind seat-wind
            :winning-tile winning-tile
            :locked-sets locked-sets :free-tiles free-tiles
-           :dora-list dora-list :ura-dora-list ura-dora-list
-           :situations situations
+           :dora-list dora-list :situations situations
            other-keys)))
 
 (define-test hand-negative
@@ -53,6 +54,18 @@
   (fail (make-test-hand :winning-tile :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :locked-sets :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :locked-sets '(:keyword)) 'rh:invalid-hand-element)
+  (fail (make-test-hand :free-tiles
+                        (rt:read-tile-list-from-string "1145678999p")
+                        :locked-sets (list (rs:read-set-from-string "123p")))
+      'rh:invalid-hand-element)
+  (fail (make-test-hand :free-tiles
+                        (rt:read-tile-list-from-string "2345678999p")
+                        :locked-sets (list (rs:read-set-from-string "111p")))
+      'rh:invalid-hand-element)
+  (fail (make-test-hand :free-tiles
+                        (rt:read-tile-list-from-string "11123456789p")
+                        :locked-sets (list (rs:read-set-from-string "99p")))
+      'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles '(:keyword)) 'rh:invalid-hand-element)
   (fail (make-test-hand :dora-list :keyword) 'rh:invalid-hand-element)
@@ -82,7 +95,7 @@
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112345678999p")
-         :locked-sets (list (rs:read-set-from-string "456p")))
+         :locked-sets (list (rs:read-set-from-string "4*56p")))
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "112345678999p"))
