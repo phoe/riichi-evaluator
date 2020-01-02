@@ -123,6 +123,29 @@
                      list ~S, which contains the pair tile ~S."
              (single-tiles condition) (pair-tile condition)))))
 
+(define-condition invalid-puuta (riichi-evaluator-error)
+  ((%offending-tiles :reader offending-tiles :initarg :offending-tiles))
+  (:default-initargs
+   :offending-tiles (a:required-argument :offending-tiles))
+  (:report
+   (lambda (condition stream)
+     (destructuring-bind (tile-1 tile-2) (offending-tiles condition)
+       (format stream "Attempted to make a puuta with neighboring tiles ~A and ~
+                      ~A." tile-1 tile-2)))))
+
+(define-condition full-hand-set-invalid-tile-count (riichi-evaluator-error)
+  ((%tiles :reader tiles :initarg :tiles)
+   (%expected-tile-count :reader expected-tile-count
+                         :initarg :expected-tile-count))
+  (:default-initargs
+   :tiles (a:required-argument :tiles)
+   :expected-tile-count (a:required-argument :expected-tile-count))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to make a full hand set with tile list ~A, ~
+                     which contains fewer than ~D tiles expected for that set."
+             (tiles condition) (expected-tile-count condition)))))
+
 ;;; Protocol
 
 (p:define-protocol-class set () ())
@@ -223,6 +246,14 @@
 
 (p:define-protocol-class full-hand-set (set) ())
 
+(defmethod initialize-instance :after ((set full-hand-set) &key)
+  (let ((expected-tile-count (set-tile-count set))
+        (tiles (tiles set)))
+    (unless (= expected-tile-count (length tiles))
+      (error 'full-hand-set-invalid-tile-count
+             :tiles tiles
+             :expected-tile-count expected-tile-count))))
+
 (defmethod set-tile-count ((set full-hand-set)) (values 14 0))
 
 (p:define-protocol-class singles-set () ())
@@ -231,7 +262,8 @@
 
 (defmethod initialize-instance :after ((set singles-set) &key)
   (let ((single-tiles (single-tiles set)))
-    (unless (= 12 (length (remove-duplicates single-tiles :test #'tile=)))
+    (unless (= (length single-tiles)
+               (length (remove-duplicates single-tiles :test #'tile=)))
       (error 'singles-set-contains-duplicates :tiles single-tiles))))
 
 (defmethod set= ((set-1 singles-set) (set-2 singles-set))
@@ -280,20 +312,37 @@
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
 
-(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set)
+(p:define-protocol-class puuta (singles-set) ())
+
+(defun verify-puuta-tiles (tiles)
+  (dolist (tile-1 tiles)
+    (unless (honor-p tile-1)
+      (dolist (tile-2 (remove tile-1 tiles :count 1 :test #'tile=))
+        (unless (honor-p tile-2)
+          (when (eq (suit tile-1) (suit tile-2))
+            (let ((rank-difference (abs (- (rank tile-1) (rank tile-2)))))
+              (when (< rank-difference 3)
+                (return-from verify-puuta-tiles (list tile-1 tile-2))))))))))
+
+(defmethod initialize-instance :after ((set shiisan-puuta) &key)
+  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
+                                                          (single-tiles set)))))
+    (error 'invalid-puuta :offending-tiles offending-tiles)))
+
+(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set puuta)
   ((%single-tiles :reader single-tiles :initarg :single-tiles))
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
-
-;;; TODO initialize-instance
 
 (defmethod tiles ((set shiisan-puuta))
   (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
         #'tile<))
 
-(defclass shiisuu-puuta (fourteen-singles-set closed-set) ())
+(defclass shiisuu-puuta (fourteen-singles-set closed-set puuta) ())
 
-;;; TODO initialize-instance
+(defmethod initialize-instance :after ((set shiisuu-puuta) &key)
+  (a:when-let ((offending-tiles (verify-puuta-tiles (single-tiles set))))
+    (error 'invalid-puuta :offending-tiles offending-tiles)))
 
 (defmethod tiles ((set shiisuu-puuta))
   (single-tiles set))
