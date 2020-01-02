@@ -324,15 +324,15 @@
               (when (< rank-difference 3)
                 (return-from verify-puuta-tiles (list tile-1 tile-2))))))))))
 
-(defmethod initialize-instance :after ((set shiisan-puuta) &key)
-  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
-                                                          (single-tiles set)))))
-    (error 'invalid-puuta :offending-tiles offending-tiles)))
-
 (defclass shiisan-puuta (twelve-singles-and-pair-set closed-set puuta)
   ((%single-tiles :reader single-tiles :initarg :single-tiles))
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
+
+(defmethod initialize-instance :after ((set shiisan-puuta) &key)
+  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
+                                                          (single-tiles set)))))
+    (error 'invalid-puuta :offending-tiles offending-tiles)))
 
 (defmethod tiles ((set shiisan-puuta))
   (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
@@ -465,7 +465,10 @@
 
 ;;; Set reader
 
-;;; TODO: make it possible to read sets like "1p1p1p".
+(defun try-read-make-tile (rank suit)
+  (if (eq suit :honor)
+      (make-instance 'honor-tile :kind (nth (1- rank) *honors*))
+      (make-instance 'suited-tile :suit suit :rank rank)))
 
 (defun read-set (stream)
   (let ((string (loop for char = (peek-char t stream nil :eof t)
@@ -475,170 +478,135 @@
 
 (defun read-set-from-string (string)
   (flet ((complain () (error 'set-reader-error :offending-string string)))
-    (handler-case (or (try-read-set string) (complain))
+    (handler-case (let ((ordered-tiles (parse-set-string string)))
+                    (or (try-read-set ordered-tiles) (complain)))
       (riichi-evaluator-error () (complain)))))
 
-(defun try-read-make-tile (rank suit)
-  (if (eq suit :honor)
-      (make-instance 'honor-tile :kind (nth (1- rank) *honors*))
-      (make-instance 'suited-tile :suit suit :rank rank)))
+(defun parse-set-string (string)
+  (prog ((stack '())
+         (result '())
+         (char nil)
+         (i 0)
+         (length (length string)))
+   :start
+     (when (= i length) (go :end))
+   :pop-char
+     (setf char (char string i))
+     (cond ((char<= #\0 char #\9) (go :number-char))
+           ((alpha-char-p char) (go :alpha-char))
+           ((char= #\* char) (go :flip-last-number))
+           (t (go :error)))
+   :number-char
+     (let ((rank (digit-char-p char)))
+       (push (list rank nil) stack))
+     (go :loop)
+   :alpha-char
+     (dolist (elt stack)
+       (destructuring-bind (number state) elt
+         (let ((suit (a:rassoc-value *print-table* char
+                                     :test #'char-equal)))
+           (unless suit (go :error))
+           (push (list number suit state) result))))
+     (setf stack '())
+     (go :loop)
+   :flip-last-number
+     (destructuring-bind (rank state) (pop stack)
+       (let ((new-state (ecase state
+                          ((nil) :flip)
+                          (:flip :shouminkan))))
+         (push (list rank new-state) stack)))
+     (go :loop)
+   :loop
+     (incf i)
+     (go :start)
+   :end
+     (return result)
+   :error
+     (error 'riichi-evaluator-error)))
 
-(defmacro destructure-string (lambda-list string &body body)
-  `(when (= ,(length lambda-list) (length ,string))
-     (destructuring-bind ,lambda-list (coerce ,string 'list)
-       ,@body)))
-
-(defgeneric try-read-set (string)
+(defgeneric try-read-set (ordered)
   (:method-combination chained-or))
 
-(defmethod try-read-set chained-or :antoi ((string string))
-  (destructure-string (c1 c2 c3) string
-    (a:when-let ((rank-1 (digit-char-p c1))
-                 (rank-2 (digit-char-p c2))
-                 (suit (a:rassoc-value *print-table* c3)))
-      (when (= rank-1 rank-2)
-        (antoi (try-read-make-tile rank-1 suit))))))
+(defmethod try-read-set :toitsu (ordered)
+  (when (= 2 (length ordered))
+    (destructuring-bind ((rank-1 suit-1 state-1)
+                         (rank-2 suit-2 state-2))
+        ordered
+      (when (and (= rank-1 rank-2)
+                 (eq suit-1 suit-2))
+        (let ((tile (try-read-make-tile rank-1 suit-1)))
+          (a:switch ((list state-1 state-2) :test #'equal)
+            ('(nil nil) (antoi tile))
+            ('(:flip nil) (mintoi tile :kamicha))
+            ('(:flip :flip) (mintoi tile :toimen))
+            ('(nil :flip) (mintoi tile :shimocha))))))))
 
-(defmethod try-read-set chained-or :mintoi-kamicha-shimocha ((string string))
-  (destructure-string (c1 c2 c3 c4) string
-    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
-                                    ((char= #\* c3) :shimocha)))
-                  (rank-1 (digit-char-p c1))
-                  (rank-2 (case taken-from
-                            (:kamicha (digit-char-p c3))
-                            (:shimocha (digit-char-p c2))))
-                  (suit (a:rassoc-value *print-table* c4)))
-      (when (= rank-1 rank-2)
-        (mintoi (try-read-make-tile rank-1 suit) taken-from)))))
+(defmethod try-read-set :koutsu (ordered)
+  (when (= 3 (length ordered))
+    (destructuring-bind ((rank-1 suit-1 state-1)
+                         (rank-2 suit-2 state-2)
+                         (rank-3 suit-3 state-3))
+        ordered
+      (when (and (= rank-1 rank-2 rank-3)
+                 (eq suit-1 suit-2) (eq suit-1 suit-3))
+        (let ((tile (try-read-make-tile rank-1 suit-1)))
+          (a:switch ((list state-1 state-2 state-3) :test #'equal)
+            ('(nil nil nil) (ankou tile))
+            ('(:flip nil nil) (minkou tile :kamicha))
+            ('(nil :flip nil) (minkou tile :toimen))
+            ('(nil nil :flip) (minkou tile :shimocha))))))))
 
-(defmethod try-read-set chained-or :mintoi-toimen ((string string))
-  (destructure-string (c1 c2 c3 c4 c5) string
-    (when (char= #\* c2 c4)
-      (a:when-let ((rank-1 (digit-char-p c1))
-                   (rank-2 (digit-char-p c3))
-                   (suit (a:rassoc-value *print-table* c5)))
-        (when (= rank-1 rank-2)
-          (mintoi (try-read-make-tile rank-1 suit) :toimen))))))
+(defmethod try-read-set :kantsu (ordered)
+  (when (= 4 (length ordered))
+    (destructuring-bind ((rank-1 suit-1 state-1)
+                         (rank-2 suit-2 state-2)
+                         (rank-3 suit-3 state-3)
+                         (rank-4 suit-4 state-4))
+        ordered
+      (when (and (= rank-1 rank-2 rank-3 rank-4)
+                 (eq suit-1 suit-2) (eq suit-1 suit-3) (eq suit-1 suit-4))
+        (let ((tile (try-read-make-tile rank-1 suit-1)))
+          (a:switch ((list state-1 state-2 state-3 state-4) :test #'equal)
+            ('(nil nil nil nil) (ankan tile))
+            ('(:flip nil nil nil) (daiminkan tile :kamicha))
+            ('(nil :flip nil nil) (daiminkan tile :toimen))
+            ('(nil nil nil :flip) (daiminkan tile :shimocha))
+            ('(:flip :shouminkan nil nil) (shouminkan tile :kamicha))
+            ('(nil :flip :shouminkan nil) (shouminkan tile :toimen))
+            ('(nil nil :flip :shouminkan) (shouminkan tile :shimocha))))))))
 
-(defmethod try-read-set chained-or :ankou ((string string))
-  (destructure-string (c1 c2 c3 c4) string
-    (a:when-let ((rank-1 (digit-char-p c1))
-                 (rank-2 (digit-char-p c2))
-                 (rank-3 (digit-char-p c3))
-                 (suit (a:rassoc-value *print-table* c4)))
-      (when (= rank-1 rank-2 rank-3)
-        (ankou (try-read-make-tile rank-1 suit))))))
+(defun shuntsu-ranks-p (rank-1 rank-2 rank-3)
+  (and (<= 1 rank-1 9) (<= 1 rank-2 9) (<= 1 rank-3 9)
+       (or (= rank-1 (+ 1 rank-2) (+ 2 rank-3))
+           (= rank-1 (+ 1 rank-3) (+ 2 rank-2))
+           (= rank-2 (+ 1 rank-1) (+ 2 rank-3))
+           (= rank-2 (+ 1 rank-3) (+ 2 rank-1))
+           (= rank-3 (+ 1 rank-1) (+ 2 rank-2))
+           (= rank-3 (+ 1 rank-2) (+ 2 rank-1)))))
 
-(defmethod try-read-set chained-or :minkou ((string string))
-  (destructure-string (c1 c2 c3 c4 c5) string
-    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
-                                    ((char= #\* c3) :toimen)
-                                    ((char= #\* c4) :shimocha)))
-                  (rank-1 (digit-char-p c1))
-                  (rank-2 (case taken-from
-                            (:kamicha (digit-char-p c3))
-                            ((:toimen :shimocha) (digit-char-p c2))))
-                  (rank-3 (case taken-from
-                            ((:kamicha :toimen) (digit-char-p c4))
-                            (:shimocha (digit-char-p c3))))
-                  (suit (a:rassoc-value *print-table* c5)))
-      (when (= rank-1 rank-2 rank-3)
-        (minkou (try-read-make-tile rank-1 suit) taken-from)))))
-
-(defmethod try-read-set chained-or :ankan ((string string))
-  (destructure-string (c1 c2 c3 c4 c5) string
-    (a:when-let ((rank-1 (digit-char-p c1))
-                 (rank-2 (digit-char-p c2))
-                 (rank-3 (digit-char-p c3))
-                 (rank-4 (digit-char-p c4))
-                 (suit (a:rassoc-value *print-table* c5)))
-      (when (= rank-1 rank-2 rank-3 rank-4)
-        (ankan (try-read-make-tile rank-1 suit))))))
-
-(defmethod try-read-set chained-or :daiminkan ((string string))
-  (destructure-string (c1 c2 c3 c4 c5 c6) string
-    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
-                                    ((char= #\* c3) :toimen)
-                                    ((char= #\* c5) :shimocha)))
-                  (rank-1 (digit-char-p c1))
-                  (rank-2 (case taken-from
-                            (:kamicha (digit-char-p c3))
-                            ((:toimen :shimocha) (digit-char-p c2))))
-                  (rank-3 (case taken-from
-                            ((:kamicha :toimen) (digit-char-p c4))
-                            (:shimocha (digit-char-p c3))))
-                  (rank-4 (case taken-from
-                            ((:kamicha :toimen) (digit-char-p c5))
-                            (:shimocha (digit-char-p c4))))
-                  (suit (a:rassoc-value *print-table* c6)))
-      (when (= rank-1 rank-2 rank-3 rank-4)
-        (daiminkan (try-read-make-tile rank-1 suit) taken-from)))))
-
-(defmethod try-read-set chained-or :shouminkan ((string string))
-  (destructure-string (c1 c2 c3 c4 c5 c6 c7 c8) string
-    (a:when-let* ((taken-from (cond ((char= #\* c2 c4 c5) :kamicha)
-                                    ((char= #\* c3 c5 c6) :toimen)
-                                    ((char= #\* c4 c6 c7) :shimocha)))
-                  (rank-1 (digit-char-p c1))
-                  (rank-2 (case taken-from
-                            (:kamicha (digit-char-p c3))
-                            ((:toimen :shimocha) (digit-char-p c2))))
-                  (rank-3 (case taken-from
-                            (:kamicha (digit-char-p c6))
-                            (:toimen (digit-char-p c4))
-                            (:shimocha (digit-char-p c3))))
-                  (rank-4 (case taken-from
-                            ((:kamicha :toimen) (digit-char-p c7))
-                            (:shimocha (digit-char-p c5))))
-                  (suit (a:rassoc-value *print-table* c8)))
-      (when (= rank-1 rank-2 rank-3 rank-4)
-        (shouminkan (try-read-make-tile rank-1 suit) taken-from)))))
-
-(defmethod try-read-set chained-or :anjun ((string string))
-  (destructure-string (c1 c2 c3 c4) string
-    (a:when-let ((rank-1 (digit-char-p c1))
-                 (rank-2 (digit-char-p c2))
-                 (rank-3 (digit-char-p c3))
-                 (suit (a:rassoc-value *print-table* c4)))
-      (unless (eq suit :honor)
-        (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
-                                      :suit suit :rank)
-                             (list rank-1 rank-2 rank-3))))
-          (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
-            (when (and (tile-consec-p tile-1 tile-2)
-                       (tile-consec-p tile-2 tile-3))
-              (let ((rank (min rank-1 rank-2 rank-3)))
-                (anjun (make-instance 'suited-tile
-                                      :suit suit :rank rank))))))))))
-
-(defmethod try-read-set chained-or :minjun ((string string))
-  (destructure-string (c1 c2 c3 c4 c5) string
-    (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
-                                    ((char= #\* c3) :toimen)
-                                    ((char= #\* c4) :shimocha)))
-                  (rank-1 (digit-char-p c1))
-                  (rank-2 (case taken-from
-                            (:kamicha (digit-char-p c3))
-                            ((:toimen :shimocha) (digit-char-p c2))))
-                  (rank-3 (case taken-from
-                            ((:kamicha :toimen) (digit-char-p c4))
-                            (:shimocha (digit-char-p c3))))
-                  (suit (a:rassoc-value *print-table* c5)))
-      (unless (eq suit :honor)
-        (let ((tiles (mapcar (a:curry #'make-instance 'suited-tile
-                                      :suit suit :rank)
-                             (list rank-1 rank-2 rank-3))))
-          (destructuring-bind (tile-1 tile-2 tile-3) (sort tiles #'tile<)
-            (when (and (tile-consec-p tile-1 tile-2)
-                       (tile-consec-p tile-2 tile-3))
-              (let* ((open-rank (case taken-from
-                                  (:kamicha rank-1)
-                                  (:toimen rank-2)
-                                  (:shimocha rank-3)))
-                     (open-tile (make-instance 'suited-tile
-                                               :suit suit
-                                               :rank open-rank)))
-                (minjun tile-1 open-tile taken-from)))))))))
+(defmethod try-read-set :shuntsu (ordered)
+  (when (= 3 (length ordered))
+    (destructuring-bind ((rank-1 suit-1 state-1)
+                         (rank-2 suit-2 state-2)
+                         (rank-3 suit-3 state-3))
+        ordered
+      (declare (ignore state-1 state-2 state-3))
+      (when (and (eq suit-1 suit-2) (eq suit-1 suit-3)
+                 (shuntsu-ranks-p rank-1 rank-2 rank-3))
+        (let* ((lowest-rank (min rank-1 rank-2 rank-3))
+               (lowest-tile (try-read-make-tile lowest-rank suit-1)))
+          (if (member :flip ordered :key #'third)
+              (when (and (= 1 (count :flip ordered :key #'third))
+                         (= 2 (count nil ordered :key #'third)))
+                (let* ((open-position (position :flip ordered :key #'third))
+                       (open-rank (first (nth open-position ordered)))
+                       (open-tile (try-read-make-tile open-rank suit-1))
+                       (taken-from (ecase open-position
+                                     (0 :kamicha)
+                                     (1 :toimen)
+                                     (2 :shimocha))))
+                  (minjun lowest-tile open-tile taken-from)))
+              (anjun lowest-tile)))))))
 
 ;;; Tile-set matcher
 
