@@ -585,18 +585,3 @@
       (try-make-set tiles winning-tile t forbidden-sets 'anjun 3
                     #'try-make-shuntsu)
       (values nil tiles winning-tile)))
-
-;; (defun poor-mans-test ()
-;;   (flet ((test (&rest args)
-;;            (multiple-value-list
-;;             (apply #'try-make-set-from-tiles args))))
-;;     (list (test '([2p] [2p] [3p]) [2p] :kamicha (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [2p] :toimen (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [2p] :shimocha (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [2p] :tsumo (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [3p] :tsumo (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [4p] :tsumo (list (anjun [2p])))
-;;           (test '([2p] [2p] [3p]) [4p] :kamicha (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [4p] :toimen (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [4p] :shimocha (list (antoi [2p])))
-;;           (test '([2p] [2p] [3p]) [4p] :tsumo (list (antoi [2p]))))))
