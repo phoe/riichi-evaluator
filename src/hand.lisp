@@ -31,7 +31,8 @@
                     (#:p #:protest/base))
   (:export
    ;; Conditions
-   #:invalid-hand #:invalid-hand-element #:invalid-situation
+   #:invalid-hand #:invalid-hand-element
+   #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
    ;; Protocol
    #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
@@ -53,6 +54,22 @@
    :hand (a:required-argument :hand)))
 
 (define-condition invalid-hand-element (invalid-hand type-error) ())
+
+(define-condition invalid-dora-list-length (invalid-hand)
+  ((%dora-list :reader invalid-dora-list :initarg :dora-list)
+   (%ura-dora-p :reader invalid-dora-list-ura-dora-p :initarg :ura-dora-p))
+  (:default-initargs
+   :dora-list (a:required-argument :dora-list)
+   :ura-dora-p nil)
+  (:report
+   (lambda (condition stream)
+     (format stream "The ~Adora list ~S is not between 1 and 5 elements long."
+             (if (invalid-dora-list-ura-dora-p condition) "ura-" "")
+             (invalid-dora-list condition)))))
+
+(defun invalid-dora-list-length (hand dora-list &optional ura-dora-p)
+  (error 'invalid-dora-list-length :hand hand :dora-list dora-list
+                                   :ura-dora-p ura-dora-p))
 
 (define-condition invalid-situation (invalid-hand simple-condition)
   ((%situation :reader invalid-situation-situation :initarg :situation))
@@ -149,8 +166,14 @@
     (error 'invalid-hand-element :hand hand :datum datum
                                  :expected-type expected-type)))
 
-(defun check-hand-elt-type-list (hand list expected-type)
+(defun check-hand-elt-type-list (hand list expected-type
+                                 &optional min-length max-length ura-dora-p)
   (check-hand-elt-type hand list 'list)
+  (when (or min-length max-length)
+    (let ((length (length list)))
+      (when (or (and min-length (< length min-length))
+                (and max-length (< max-length length)))
+        (invalid-dora-list-length hand list ura-dora-p))))
   (dolist (elt list)
     (check-hand-elt-type hand elt expected-type)))
 
@@ -195,8 +218,8 @@
   (check-hand-elt-type hand (winning-tile hand) 'tile)
   (check-hand-elt-type-list hand (locked-sets hand) 'set)
   (check-hand-elt-type-list hand (free-tiles hand) 'tile)
-  (check-hand-elt-type hand (dora-list hand) 'cons)
-  (check-hand-elt-type-list hand (dora-list hand) 'tile)
+  (check-hand-elt-type hand (dora-list hand) 'list)
+  (check-hand-elt-type-list hand (dora-list hand) 'tile 1 5)
   (check-hand-elt-type-list hand (situations hand)
                             `(or keyword (cons keyword))))
 
@@ -224,7 +247,10 @@
    :ura-dora-list '()))
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
-  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile))
+  ;; TODO Verify that the ura-dora and dora list lengths are the same
+  ;; for closed hands.
+  (check-hand-elt-type hand (ura-dora-list hand) 'list)
+  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 1 5 t))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
   (ura-dora-list hand))
