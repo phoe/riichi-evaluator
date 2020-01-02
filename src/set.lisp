@@ -25,20 +25,23 @@
         #:riichi-evaluator.constants
         #:riichi-evaluator.tiles)
   (:local-nicknames (#:a #:alexandria)
+                    (#:nr #:named-readtables)
                     (#:p #:protest/base)
                     (#:m #:closer-mop))
   (:shadow #:set)
   (:export
    ;; Conditions
    #:invalid-set-element #:invalid-tile-taken-from #:open-tile-not-in-set
-   #:invalid-shuntsu
+   #:invalid-shuntsu #:invalid-kokushi-musou
    #:set-reader-error #:offending-string
    ;; Condition accessors
    #:open-tile #:tiles #:taken-from
    ;; Protocol
-   #:set #:set-count #:tiles #:set= #:set-tile-count
+   #:set #:tiles #:set= #:set-tile-count
    #:same-tile-set #:closed-set #:open-set #:taken-from #:standard-set
    #:shuntsu #:toitsu #:koutsu #:kantsu
+   #:full-hand-set #:twelve-singles-and-pair-set #:pair-tile
+   #:kokushi-musou
    ;; Concrete classes
    #:antoi #:mintoi #:anjun #:minjun #:ankou #:minkou
    #:ankan #:daiminkan #:shouminkan
@@ -50,11 +53,14 @@
 
 (in-package #:riichi-evaluator.set)
 
+(nr:in-readtable :riichi-evaluator)
+
 ;;; Conditions
 
 (define-condition invalid-set-element (type-error riichi-evaluator-error) ())
 
-(define-condition invalid-tile-taken-from (type-error riichi-evaluator-error) ())
+(define-condition invalid-tile-taken-from (type-error riichi-evaluator-error)
+  ())
 
 (define-condition open-tile-not-in-set (riichi-evaluator-error)
   ((%open-tile :reader open-tile :initarg :open-tile)
@@ -84,11 +90,42 @@
              (format stream "Attempted to read an invalid set: ~S"
                      (offending-string condition)))))
 
+(define-condition invalid-kokushi-musou (riichi-evaluator-error)
+  ((%offending-tile :reader offending-tile :initarg :offending-tile))
+  (:default-initargs
+   :offending-tile (a:required-argument :offending-tile))
+  (:report
+   (lambda (condition stream)
+     (let* ((tile (offending-tile condition)))
+       (format stream "Attempted to make a kokushi musou with tile ~A."
+               tile)))))
+
+(define-condition singles-set-contains-duplicates (riichi-evaluator-error)
+  ((%tiles :reader tiles :initarg :tiles))
+  (:default-initargs
+   :tiles (a:required-argument :tiles))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to make a singles set with tile list ~S, which ~
+                     contains duplicate tiles."
+             (tiles condition)))))
+
+(define-condition twelve-singles-and-pair-set-contains-duplicates
+    (riichi-evaluator-error)
+  ((%pair-tile :reader pair-tile :initarg :pair-tile)
+   (%single-tiles :reader single-tiles :initarg :single-tiles))
+  (:default-initargs
+   :pair-tile (a:required-argument :pair-tile)
+   :single-tiles (a:required-argument :single-tiles))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to make a twelve-singles-and-pair set with tile ~
+                     list ~S, which contains the pair tile ~S."
+             (single-tiles condition) (pair-tile condition)))))
+
 ;;; Protocol
 
-(p:define-protocol-class set ()
-  ((%count :reader set-count :initarg %count))
-  (:default-initargs %count (a:required-argument '%count)))
+(p:define-protocol-class set () ())
 
 (defgeneric set= (set-1 set-2)
   (:method (set-1 set-2) nil))
@@ -114,6 +151,7 @@
   (:default-initargs
    :tile (a:required-argument :same-tile-set-tile)))
 
+;;; TODO: do typechecks in :BEFORE methods rather than :AFTER methods.
 (defmethod initialize-instance :after ((set same-tile-set) &key)
   (let ((tile (same-tile-set-tile set)))
     (unless (tile-p tile)
@@ -124,22 +162,14 @@
        (tile= (same-tile-set-tile set-1) (same-tile-set-tile set-2))))
 
 (defmethod tiles ((set same-tile-set))
-  (make-list (set-count set) :initial-element (same-tile-set-tile set)))
+  (make-list (set-tile-count set) :initial-element (same-tile-set-tile set)))
 
 (p:define-protocol-class closed-set (set) ())
-
-(defmethod print-set-using-class ((set closed-set) stream)
-  (print-tile-list (tiles set) stream))
 
 (p:define-protocol-class open-set (set)
   ((%taken-from :reader taken-from :initarg :taken-from))
   (:default-initargs
    :taken-from (a:required-argument :taken-from)))
-
-(defmethod print-set-using-class :after ((set open-set) stream)
-  (let* ((tile (first (tiles set)))
-         (suit (suit tile)))
-    (princ (a:assoc-value *print-table* suit) stream)))
 
 (defmethod initialize-instance :after ((set open-set) &key)
   (let ((taken-from (taken-from set)))
@@ -158,12 +188,9 @@
 
 (p:define-protocol-class standard-set (set) ())
 
-(p:define-protocol-class toitsu (same-tile-set) ()
-  (:default-initargs %count 2))
-(p:define-protocol-class koutsu (same-tile-set standard-set) ()
-  (:default-initargs %count 3))
-(p:define-protocol-class kantsu (same-tile-set standard-set) ()
-  (:default-initargs %count 4))
+(p:define-protocol-class toitsu (same-tile-set) ())
+(p:define-protocol-class koutsu (same-tile-set standard-set) ())
+(p:define-protocol-class kantsu (same-tile-set standard-set) ())
 
 (defmethod set-tile-count ((set toitsu)) (values 2 0))
 (defmethod set-tile-count ((set koutsu)) (values 3 0))
@@ -172,7 +199,6 @@
 (p:define-protocol-class shuntsu (standard-set)
   ((%lowest-tile :reader shuntsu-lowest-tile :initarg :lowest-tile))
   (:default-initargs
-   %count 3
    :lowest-tile (a:required-argument :lowest-tile)))
 
 (defmethod initialize-instance :after ((set shuntsu) &key)
@@ -194,6 +220,83 @@
        (tile= (shuntsu-lowest-tile set-1) (shuntsu-lowest-tile set-2))))
 
 (defmethod set-tile-count ((set shuntsu)) (values 3 0))
+
+(p:define-protocol-class full-hand-set (set) ())
+
+(defmethod set-tile-count ((set full-hand-set)) (values 14 0))
+
+(p:define-protocol-class singles-set () ())
+
+(defgeneric single-tiles (singles-set))
+
+(defmethod initialize-instance :after ((set singles-set) &key)
+  (let ((single-tiles (single-tiles set)))
+    (unless (= 12 (length (remove-duplicates single-tiles :test #'tile=)))
+      (error 'singles-set-contains-duplicates :tiles single-tiles))))
+
+(defmethod set= ((set-1 singles-set) (set-2 singles-set))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile-list= (tiles set-1) (tiles set-2))))
+
+(p:define-protocol-class twelve-singles-and-pair-set (singles-set full-hand-set)
+  ((%pair-tile :reader pair-tile :initarg :pair-tile))
+  (:default-initargs
+   :pair-tile (a:required-argument :pair-tile)))
+
+(defmethod initialize-instance :before
+    ((set twelve-singles-and-pair-set) &key pair-tile)
+  (unless (tile-p pair-tile)
+    (error 'invalid-set-element :datum pair-tile :expected-type 'tile)))
+
+(defmethod initialize-instance :after ((set twelve-singles-and-pair-set) &key)
+  (let ((single-tiles (single-tiles set))
+        (pair-tile (pair-tile set)))
+    (when (member pair-tile single-tiles :test #'tile=)
+      (error 'twelve-singles-and-pair-set-contains-duplicates
+             :pair-tile pair-tile :single-tiles single-tiles))))
+
+(p:define-protocol-class kokushi-musou (twelve-singles-and-pair-set) ())
+
+(defmethod initialize-instance :after ((set kokushi-musou) &key)
+  (let ((pair-tile (pair-tile set)))
+    (unless (or (terminal-p pair-tile) (honor-p pair-tile))
+      (error 'invalid-kokushi-musou :offending-tile pair-tile))))
+
+(defparameter *kokushi-musou-tiles*
+  '([1m] [9m] [1p] [9p] [1s] [9s] [EW] [SW] [WW] [NW] [WD] [GD] [RD]))
+
+(defmethod single-tiles ((set kokushi-musou))
+  (remove (pair-tile set) *kokushi-musou-tiles* :test #'tile=))
+
+(defmethod tiles ((set kokushi-musou))
+  (sort (cons (pair-tile set) (copy-list *kokushi-musou-tiles*)) #'tile<))
+
+(defmethod set= ((set-1 kokushi-musou) (set-2 kokushi-musou))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile= (pair-tile set-1) (pair-tile set-2))))
+
+(p:define-protocol-class fourteen-singles-set (singles-set full-hand-set)
+  ((%single-tiles :reader single-tiles :initarg :single-tiles))
+  (:default-initargs
+   :single-tiles (a:required-argument :single-tiles)))
+
+(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set)
+  ((%single-tiles :reader single-tiles :initarg :single-tiles))
+  (:default-initargs
+   :single-tiles (a:required-argument :single-tiles)))
+
+;;; TODO initialize-instance
+
+(defmethod tiles ((set shiisan-puuta))
+  (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
+        #'tile<))
+
+(defclass shiisuu-puuta (fourteen-singles-set closed-set) ())
+
+;;; TODO initialize-instance
+
+(defmethod tiles ((set shiisuu-puuta))
+  (single-tiles set))
 
 ;;; Concrete classes
 
@@ -238,25 +341,39 @@
   (make-instance 'minjun :lowest-tile lowest-tile
                          :open-tile open-tile :taken-from taken-from))
 
+(defmethod initialize-instance :before ((set minjun) &key open-tile taken-from)
+  (unless (tile-p open-tile)
+    (error 'invalid-set-element :datum open-tile :expected-type 'tile))
+  (unless (member taken-from *other-players*)
+    (error 'invalid-tile-taken-from
+           :datum taken-from
+           :expected-type '#.`(member ,*other-players*))))
+
 (defmethod initialize-instance :after ((set minjun) &key)
-  (let ((tile (open-tile set)))
-    (unless (tile-p tile)
-      (error 'invalid-set-element :datum tile :expected-type 'tile))
-    (let ((tiles (tiles set)))
-      (unless (member tile tiles :test #'tile=)
-        (error 'open-tile-not-in-set :open-tile tile :tiles tiles))))
-  (let ((taken-from (taken-from set)))
-    (unless (member taken-from *other-players*)
-      (error 'invalid-tile-taken-from
-             :datum taken-from
-             :expected-type '#.`(member ,*other-players*)))))
+  (let ((tile (open-tile set))
+        (tiles (tiles set)))
+    (unless (member tile tiles :test #'tile=)
+      (error 'open-tile-not-in-set :open-tile tile :tiles tiles))))
 
 (defmethod set= ((set-1 minjun) (set-2 minjun))
-  (and (eq (class-of set-1) (class-of set-2))
-       (tile= (shuntsu-lowest-tile set-1) (shuntsu-lowest-tile set-2))
-       (tile= (open-tile set-1) (open-tile set-2))))
+  (and (tile= (open-tile set-1) (open-tile set-2))
+       (call-next-method)))
+
+(defclass closed-kokushi-musou (kokushi-musou closed-set) ())
+(defclass open-kokushi-musou (kokushi-musou open-set) ())
+(defmethod set= ((set-1 open-kokushi-musou) (set-2 open-kokushi-musou))
+  (and (tile= (open-tile set-1) (open-tile set-2))
+       (call-next-method)))
 
 ;;; Set printer
+
+(defmethod print-set-using-class ((set closed-set) stream)
+  (print-tile-list (tiles set) stream))
+
+(defmethod print-set-using-class :after ((set open-set) stream)
+  (let* ((tile (first (tiles set)))
+         (suit (suit tile)))
+    (princ (a:assoc-value *print-table* suit) stream)))
 
 (defmethod print-set-using-class ((set mintoi) stream)
   (let ((rank (rank (same-tile-set-tile set))))
@@ -299,6 +416,8 @@
 
 ;;; Set reader
 
+;;; TODO: make it possible to read sets like "1p1p1p".
+
 (defun read-set (stream)
   (let ((string (loop for char = (peek-char t stream nil :eof t)
                       while (or (alphanumericp char) (eql char #\*))
@@ -331,7 +450,7 @@
       (when (= rank-1 rank-2)
         (antoi (try-read-make-tile rank-1 suit))))))
 
-(defmethod try-read-set chained-or :mintoi-kami-shimo-cha ((string string))
+(defmethod try-read-set chained-or :mintoi-kamicha-shimocha ((string string))
   (destructure-string (c1 c2 c3 c4) string
     (a:when-let* ((taken-from (cond ((char= #\* c2) :kamicha)
                                     ((char= #\* c3) :shimocha)))
@@ -477,7 +596,7 @@
 (defun try-make-shuntsu (tiles tile forbidden-sets class tile-count args)
   (declare (ignore tile-count))
   (let (set)
-    (flet ((tiles-found-p (t1 t2 t3)
+    (flet ((try-find-set (t1 t2 t3)
              (and t1 t2 t3
                   (setf set (apply class t1 args))
                   (not (member set forbidden-sets :test #'set=))))
@@ -488,13 +607,13 @@
              (1- (find-if (make-pred -1) tiles))
              (1+ (find-if (make-pred 1) tiles))
              (2+ (find-if (make-pred 2) tiles)))
-        (cond ((tiles-found-p 2- 1- tile)
+        (cond ((try-find-set 2- 1- tile)
                (list set (bag-difference tiles (list 2- 1- tile)
                                          :test #'tile=)))
-              ((tiles-found-p 1- tile 1+)
+              ((try-find-set 1- tile 1+)
                (list set (bag-difference tiles (list 1- tile 1+)
                                          :test #'tile=)))
-              ((tiles-found-p tile 1+ 2+)
+              ((try-find-set tile 1+ 2+)
                (list set (bag-difference tiles (list tile 1+ 2+)
                                          :test #'tile=))))))))
 
