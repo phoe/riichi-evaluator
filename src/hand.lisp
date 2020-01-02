@@ -34,6 +34,7 @@
    #:invalid-hand #:invalid-hand-element
    #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
+   #:invalid-dora-list-lengths
    ;; Protocol
    #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
@@ -130,6 +131,14 @@
              (minjun-invalid-meld-set condition)
              (minjun-invalid-meld-taken-from condition)))))
 
+(define-condition invalid-dora-list-lengths (invalid-hand) ()
+  (:report
+   (lambda (condition stream)
+     (let ((hand (invalid-hand-hand condition)))
+       (format stream "The dora list ~S and ura dora list ~S for hand ~S ~
+                       are not of the same length."
+               (dora-list hand) (ura-dora-list hand) hand)))))
+
 ;;; Hand
 
 (p:define-protocol-class hand ()
@@ -138,7 +147,6 @@
    (%winning-tile :accessor winning-tile :initarg :winning-tile)
    (%locked-sets :accessor locked-sets :initarg :locked-sets)
    (%free-tiles :accessor free-tiles :initarg :free-tiles)
-   ;; TODO: verify that the length of the list of doras is between 1 and 5.
    (%dora-list :accessor dora-list :initarg :dora-list)
    (%situations :accessor situations :initarg :situations))
   (:default-initargs
@@ -246,11 +254,16 @@
   (:default-initargs
    :ura-dora-list '()))
 
+(defun check-dora-ura-dora-list-length (hand)
+  (let ((dora-list-length (length (dora-list hand)))
+        (ura-dora-list-length (length (ura-dora-list hand))))
+    (unless (= dora-list-length ura-dora-list-length)
+      (error 'invalid-dora-list-lengths :hand hand))))
+
 (defmethod initialize-instance :after ((hand closed-hand) &key)
-  ;; TODO Verify that the ura-dora and dora list lengths are the same
-  ;; for closed hands.
   (check-hand-elt-type hand (ura-dora-list hand) 'list)
-  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 1 5 t))
+  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 1 5 t)
+  (check-dora-ura-dora-list-length hand))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
   (ura-dora-list hand))

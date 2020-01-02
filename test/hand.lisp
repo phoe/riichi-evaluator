@@ -33,6 +33,7 @@
                          (free-tiles
                           (rt:read-tile-list-from-string "1112345678999p"))
                          (dora-list '([3p]))
+                         (ura-dora-list '([4p]))
                          (situations '())
                        &allow-other-keys)
   (let* ((known-keys '(:class :prevailing-wind :seat-wind :winning-tile
@@ -42,7 +43,8 @@
            :prevailing-wind prevailing-wind :seat-wind seat-wind
            :winning-tile winning-tile
            :locked-sets locked-sets :free-tiles free-tiles
-           :dora-list dora-list :situations situations
+           :dora-list dora-list :ura-dora-list ura-dora-list
+           :situations situations
            other-keys)))
 
 (define-test hand-negative
@@ -72,6 +74,16 @@
                         :losing-player :toimen
                         :ura-dora-list '(:keyword))
       'rh:invalid-hand-element)
+  (fail (make-test-hand :class 'rh:closed-ron-hand
+                        :losing-player :toimen
+                        :dora-list '([4p])
+                        :ura-dora-list '([5p] [6p]))
+      'rh:invalid-dora-list-lengths)
+  (fail (make-test-hand :class 'rh:closed-ron-hand
+                        :losing-player :toimen
+                        :dora-list '([4p] [5p])
+                        :ura-dora-list '([6p]))
+      'rh:invalid-dora-list-lengths)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "11112345678999p"))
       'rh:invalid-tile-count)
