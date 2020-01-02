@@ -529,6 +529,10 @@
 (defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
   (:method-combination chained-or))
 
+;; NOTE: The -NO-WINNING-TILE functions are named this way because
+;; they do not consume the winning tile, even though that they still
+;; require the winning tile passed to them. It is illegal to pass
+;; a NIL in place of a winning tile to these functions.
 (macrolet
     ((make ((class format-control) &body body)
        (let ((name (a:format-symbol :keyword format-control class)))

@@ -301,9 +301,7 @@
           (nconc
            (let* ((winning-tile-consumed-p (and (null winning-set)
                                                 (null new-winning-tile)))
-                  (new-winning-set (if winning-tile-consumed-p
-                                       new-set
-                                       winning-set))
+                  (new-winning-set (if winning-tile-consumed-p new-set nil))
                   (new-other-sets (if winning-tile-consumed-p
                                       other-sets
                                       (cons new-set other-sets))))
