@@ -33,7 +33,7 @@
                          (free-tiles
                           (rt:read-tile-list-from-string "1112345678999p"))
                          (dora-list '([3p]))
-                         (ura-dora-list '([4p]))
+                         (ura-dora-list '())
                          (situations '())
                        &allow-other-keys)
   (let* ((known-keys '(:class :prevailing-wind :seat-wind :winning-tile
@@ -62,7 +62,6 @@
       'rh:invalid-dora-list-length)
   (fail (make-test-hand :ura-dora-list :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :ura-dora-list '(:keyword)) 'rh:invalid-hand-element)
-  (fail (make-test-hand :ura-dora-list '()) 'rh:invalid-dora-list-length)
   (fail (make-test-hand :ura-dora-list '([4p] [5p] [6p] [4p] [5p] [6p]))
       'rh:invalid-dora-list-length)
   (fail (make-test-hand :situations :keyword) 'rh:invalid-hand-element)
@@ -70,10 +69,14 @@
   (fail (make-test-hand :situations '((42))) 'rh:invalid-hand-element)
   (fail (make-test-hand :class 'rh:closed-ron-hand :losing-player :keyword)
       'rh:invalid-hand-element)
-  (fail (make-test-hand :dora-list '([4p]) :ura-dora-list '([5p] [6p]))
-      'rh:invalid-dora-list-lengths)
-  (fail (make-test-hand :dora-list '([4p] [5p]) :ura-dora-list '([6p]))
-      'rh:invalid-dora-list-lengths)
+  ;; TODO: we allow the ura dora list to be empty since at this point
+  ;; we do not know if riichi was declared.
+  ;; Introduce the typechecks for that in situations.lisp.
+  ;; (fail (make-test-hand :ura-dora-list '()) 'rh:invalid-dora-list-length)
+  ;; (fail (make-test-hand :dora-list '([4p]) :ura-dora-list '([5p] [6p]))
+  ;;     'rh:invalid-dora-list-lengths)
+  ;; (fail (make-test-hand :dora-list '([4p] [5p]) :ura-dora-list '([6p]))
+  ;;     'rh:invalid-dora-list-lengths)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "11112345678999p"))
       'rh:invalid-tile-count)

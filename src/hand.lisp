@@ -262,10 +262,12 @@
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
   (check-hand-elt-type hand (ura-dora-list hand) 'list)
-  ;; TODO: allow the ura dora list to be empty as long as riichi
-  ;; was not declared.
-  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 1 5 t)
-  (check-dora-ura-dora-list-length hand))
+  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 0 5 t)
+  ;; TODO: we allow the ura dora list to be empty since at this point
+  ;; we do not know if riichi was declared.
+  ;; Introduce the typechecks for that in situations.lisp.
+  ;; (check-dora-ura-dora-list-length hand)
+  )
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
   (ura-dora-list hand))
