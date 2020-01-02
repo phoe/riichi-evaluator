@@ -299,14 +299,14 @@
           (try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
         (when new-set
           (nconc
-           (let ((new-winning-set (if (and (null winning-set)
-                                           (null new-winning-tile))
-                                      new-set
-                                      winning-set))
-                 (new-other-sets (if (and (null winning-set)
-                                          (null new-winning-tile))
-                                     other-sets
-                                     (cons new-set other-sets))))
+           (let* ((winning-tile-consumed-p (and (null winning-set)
+                                                (null new-winning-tile)))
+                  (new-winning-set (if winning-tile-consumed-p
+                                       new-set
+                                       winning-set))
+                  (new-other-sets (if winning-tile-consumed-p
+                                      other-sets
+                                      (cons new-set other-sets))))
              (%find-orderings new-tiles new-winning-tile win-from
                               forbidden-sets
                               new-winning-set new-other-sets))
