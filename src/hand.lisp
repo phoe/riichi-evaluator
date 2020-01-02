@@ -262,6 +262,8 @@
 
 (defmethod initialize-instance :after ((hand closed-hand) &key)
   (check-hand-elt-type hand (ura-dora-list hand) 'list)
+  ;; TODO: allow the ura dora list to be empty as long as riichi
+  ;; was not declared.
   (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 1 5 t)
   (check-dora-ura-dora-list-length hand))
 
