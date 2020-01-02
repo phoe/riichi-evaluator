@@ -306,6 +306,8 @@
         (is rt:tile= expected-winning-tile actual-winning-tile))))
 
 ;; TODO: wait for IS-VALUES to be fixed.
+;; TODO: tests for a NIL winning tile - e.g. for when it was already consumed
+;;       by other matchers.
 (define-test try-make-set-antoi
   ;; 2p + 3p → ∅
   (test-make-set

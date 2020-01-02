@@ -136,3 +136,15 @@
         (rh:open-tsumo-hand)
         (rh:open-ron-hand
          (is eq :toimen (rh:losing-player hand)))))))
+
+;;; Ordering finder
+;;; TODO write these, based on a couple of hands that we recognize
+
+;; (let ((tiles '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
+;;                [6p] [7p] [8p] [9p] [9p] [9p])))
+;;   (dolist (winning-tile '([1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]))
+;;     (print (rh::%find-orderings tiles winning-tile :tsumo '()))))
+
+;; (let ((tiles '([1p] [1p] [2p] [2p] [3p] [3p]
+;;                [4p] [4p] [5p] [5p] [6p] [6p] [7p])))
+;;   (print (rh::%find-orderings tiles [7p] :tsumo '())))

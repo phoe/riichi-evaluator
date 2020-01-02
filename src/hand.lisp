@@ -43,6 +43,8 @@
    #:ura-dora-list #:losing-player
    ;; Concrete classes
    #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
+   ;; Ordering finder
+   #:find-orderings
    ))
 
 (in-package #:riichi-evaluator.hand)
@@ -84,7 +86,7 @@
                (if (and (consp situation) (null (cdr situation)))
                    (car situation)
                    situation)
-               (invalid-situation-hand condition)
+               (invalid-hand-hand condition)
                (apply #'format nil
                       (simple-condition-format-control condition)
                       (simple-condition-format-arguments condition)))))))
@@ -278,3 +280,36 @@
 (defclass open-ron-hand (ron-hand open-hand) ())
 (defclass closed-tsumo-hand (tsumo-hand closed-hand) ())
 (defclass closed-ron-hand (ron-hand closed-hand) ())
+
+;;; Ordering finder
+
+(defun find-orderings (hand)
+  (let ((tiles (free-tiles hand))
+        (winning-tile (winning-tile hand))
+        (win-from (etypecase hand
+                    (closed-hand :tsumo)
+                    (open-hand (taken-from hand)))))
+    (%find-orderings tiles winning-tile win-from '())))
+
+(defun %find-orderings (tiles winning-tile win-from forbidden-sets
+                        &optional winning-set (other-sets '()))
+  (if (and (null tiles) (null winning-tile))
+      (list (list winning-set other-sets))
+      (multiple-value-bind (new-set new-tiles new-winning-tile)
+          (try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
+        (when new-set
+          (nconc
+           (let ((new-winning-set (if (and (null winning-set)
+                                           (null new-winning-tile))
+                                      new-set
+                                      winning-set))
+                 (new-other-sets (if (and (null winning-set)
+                                          (null new-winning-tile))
+                                     other-sets
+                                     (cons new-set other-sets))))
+             (%find-orderings new-tiles new-winning-tile win-from
+                              forbidden-sets
+                              new-winning-set new-other-sets))
+           (%find-orderings tiles winning-tile win-from
+                            (cons new-set forbidden-sets)
+                            winning-set other-sets))))))
