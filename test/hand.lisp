@@ -60,29 +60,19 @@
   (fail (make-test-hand :dora-list '()) 'rh:invalid-dora-list-length)
   (fail (make-test-hand :dora-list '([4p] [5p] [6p] [4p] [5p] [6p]))
       'rh:invalid-dora-list-length)
+  (fail (make-test-hand :ura-dora-list :keyword) 'rh:invalid-hand-element)
+  (fail (make-test-hand :ura-dora-list '(:keyword)) 'rh:invalid-hand-element)
+  (fail (make-test-hand :ura-dora-list '()) 'rh:invalid-dora-list-length)
+  (fail (make-test-hand :ura-dora-list '([4p] [5p] [6p] [4p] [5p] [6p]))
+      'rh:invalid-dora-list-length)
   (fail (make-test-hand :situations :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :situations '(42)) 'rh:invalid-hand-element)
   (fail (make-test-hand :situations '((42))) 'rh:invalid-hand-element)
-  (fail (make-test-hand :class 'rh:closed-ron-hand
-                        :losing-player :keyword)
+  (fail (make-test-hand :class 'rh:closed-ron-hand :losing-player :keyword)
       'rh:invalid-hand-element)
-  (fail (make-test-hand :class 'rh:closed-ron-hand
-                        :losing-player :toimen
-                        :ura-dora-list :keyword)
-      'rh:invalid-hand-element)
-  (fail (make-test-hand :class 'rh:closed-ron-hand
-                        :losing-player :toimen
-                        :ura-dora-list '(:keyword))
-      'rh:invalid-hand-element)
-  (fail (make-test-hand :class 'rh:closed-ron-hand
-                        :losing-player :toimen
-                        :dora-list '([4p])
-                        :ura-dora-list '([5p] [6p]))
+  (fail (make-test-hand :dora-list '([4p]) :ura-dora-list '([5p] [6p]))
       'rh:invalid-dora-list-lengths)
-  (fail (make-test-hand :class 'rh:closed-ron-hand
-                        :losing-player :toimen
-                        :dora-list '([4p] [5p])
-                        :ura-dora-list '([6p]))
+  (fail (make-test-hand :dora-list '([4p] [5p]) :ura-dora-list '([6p]))
       'rh:invalid-dora-list-lengths)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "11112345678999p"))
