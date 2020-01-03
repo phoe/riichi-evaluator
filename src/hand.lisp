@@ -56,8 +56,6 @@
   (:default-initargs
    :hand (a:required-argument :hand)))
 
-;;; TODO: we may need more descriptive conditions instead of ones with standard
-;;; type error messages.
 (define-condition invalid-hand-element (invalid-hand type-error) ())
 
 (define-condition invalid-dora-list-length (invalid-hand)
@@ -252,7 +250,6 @@
   (check-hand-elt-type-list hand situations `(or keyword (cons keyword))))
 
 (defmethod initialize-instance :after ((hand hand) &key)
-  ;; TODO better message for this
   (check-hand-situations hand)
   (check-tile-count hand)
   (check-at-most-four-tiles-of-a-kind hand)
@@ -275,20 +272,12 @@
   (:default-initargs
    :ura-dora-list '()))
 
-(defun check-dora-ura-dora-list-length (hand)
-  (let ((dora-list-length (length (dora-list hand)))
-        (ura-dora-list-length (length (ura-dora-list hand))))
-    (unless (= dora-list-length ura-dora-list-length)
-      (error 'invalid-dora-list-lengths :hand hand))))
-
 (defmethod initialize-instance :before ((hand closed-hand) &key ura-dora-list)
   (check-hand-elt-type hand ura-dora-list 'list)
-  (check-hand-elt-type-list hand ura-dora-list 'tile 0 5 t)
-  ;; TODO: we allow the ura dora list to be empty since at this point
-  ;; we do not know if riichi was declared.
-  ;; Introduce the typechecks for that in situations.lisp.
-  ;; (check-dora-ura-dora-list-length hand)
-  )
+  ;; NOTE: we allow the ura dora list to be empty since at this point
+  ;; we do not know if riichi was declared. This check needs to occur when the
+  ;; riichi situation is validated.
+  (check-hand-elt-type-list hand ura-dora-list 'tile 0 5 t))
 
 (defmethod hand-total-visible-tiles append ((hand closed-hand))
   (ura-dora-list hand))
@@ -300,18 +289,42 @@
 (defclass closed-tsumo-hand (tsumo-hand closed-hand) ())
 (defclass closed-ron-hand (ron-hand closed-hand) ())
 
+;;; Mahjong hand detection
+
+(defun is-number-sets-of-type-p (count type sets)
+  (= count (count-if (a:rcurry #'typep type) sets)))
+
+(defgeneric mahjong-hand-p (sets)
+  (:method-combination chained-or)
+  (:method (sets) nil))
+
+(defmethod mahjong-hand-p :standard (sets)
+  (and (is-number-sets-of-type-p 4 'standard-set sets)
+       (is-number-sets-of-type-p 1 'toitsu sets)
+       (is-number-sets-of-type-p 0 '(not (or standard-set toitsu)) sets)))
+
+(defmethod mahjong-hand-p :chiitoi (sets)
+  (and (is-number-sets-of-type-p 7 'toitsu sets)
+       (is-number-sets-of-type-p 0 '(not toitsu) sets)))
+
+(defmethod mahjong-hand-p :full-hand-set (sets)
+  (and (is-number-sets-of-type-p 1 'full-hand-set sets)
+       (is-number-sets-of-type-p 0 '(not full-hand-set) sets)))
+
 ;;; Ordering finder
 
-(defun find-orderings (hand)
+(defun find-orderings (hand &optional include-non-mahjong-orderings-p)
   (let* ((tiles (free-tiles hand))
          (winning-tile (winning-tile hand))
          (win-from (etypecase hand
                      (closed-hand :tsumo)
                      (open-hand (taken-from hand))))
-         (possible-orderings (%find-orderings tiles winning-tile win-from '()))
-         ;; TODO: only return the orderings that form a mahjong hand.
-         (orderings possible-orderings))
-    orderings))
+         (possible-orderings (%find-orderings tiles winning-tile win-from '())))
+    (if include-non-mahjong-orderings-p
+        possible-orderings
+        (remove-if-not #'mahjong-hand-p possible-orderings
+                       :key (lambda (x) (cons (first x)
+                                              (second x)))))))
 
 (defun %find-orderings (tiles winning-tile win-from forbidden-sets
                         &optional winning-set (other-sets '()))
@@ -321,15 +334,16 @@
           (try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
         (when new-set
           (nconc
-           (let* ((winning-tile-consumed-p (and (null winning-set)
+           (let* ((winning-tile-consumed-p (and (not (null winning-tile))
                                                 (null new-winning-tile)))
-                  (new-winning-set (if winning-tile-consumed-p new-set nil))
+                  (new-winning-set (if winning-tile-consumed-p
+                                       new-set
+                                       winning-set))
                   (new-other-sets (if winning-tile-consumed-p
                                       other-sets
                                       (cons new-set other-sets))))
-             (%find-orderings new-tiles new-winning-tile win-from
-                              forbidden-sets
+             (%find-orderings new-tiles new-winning-tile win-from forbidden-sets
                               new-winning-set new-other-sets))
-           (%find-orderings tiles winning-tile win-from
-                            (cons new-set forbidden-sets)
-                            winning-set other-sets))))))
+           (let ((new-forbidden-sets (cons new-set forbidden-sets)))
+             (%find-orderings tiles winning-tile win-from new-forbidden-sets
+                              winning-set other-sets)))))))

@@ -25,10 +25,17 @@
 ;; TODO move into yaku definitions
 ;; TODO invalid-situation tests
 
+;; (defun check-dora-ura-dora-list-length (hand)
+;;   (let ((dora-list-length (length (dora-list hand)))
+;;         (ura-dora-list-length (length (ura-dora-list hand))))
+;;     (unless (= dora-list-length ura-dora-list-length)
+;;       (error 'invalid-dora-list-lengths :hand hand))))
+
 (defmethod validate-situation progn
     (hand situation &rest args)
   ;; TODO: In case of no riichi, verify that the list of ura doras is empty.
   ;; How exactly do we achieve that? Dunno. Probably here.
+  ;; (check-dora-ura-dora-list-length hand)
   (when (null (compute-applicable-methods
                #'validate-situation (list* hand situation args)))
     (invalid-situation hand situation args "Unknown situation ~S." situation)))
