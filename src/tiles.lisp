@@ -107,15 +107,15 @@
    (%rank :initarg :rank
           :reader rank)))
 
-(defmethod initialize-instance :after ((tile suited-tile) &key)
-  (unless (member (suit tile) *suits*)
+(defmethod initialize-instance :after ((tile suited-tile) &key suit rank)
+  (unless (member suit *suits*)
     (error 'invalid-tile-datum
-           :datum (suit tile)
+           :datum suit
            :expected-type '#.`(member ,@*suits*)))
-  (unless (and (numberp (rank tile))
-               (<= 1 (rank tile) 9))
+  (unless (and (numberp rank)
+               (<= 1 rank 9))
     (error 'invalid-tile-datum
-           :datum (rank tile) :expected-type '(integer 1 9))))
+           :datum rank :expected-type '(integer 1 9))))
 
 (defmethod print-object ((tile suited-tile) stream)
   (handler-case
@@ -159,9 +159,9 @@
   ((%kind :initarg :kind
           :reader kind)))
 
-(defmethod initialize-instance :after ((tile honor-tile) &key)
-  (unless (member (kind tile) *honors*)
-    (error 'invalid-tile-datum :datum (kind tile)
+(defmethod initialize-instance :before ((tile honor-tile) &key kind)
+  (unless (member kind *honors*)
+    (error 'invalid-tile-datum :datum kind
                                :expected-type '#.`(member ,@*honors*))))
 
 (defmethod rank ((tile honor-tile)) (1+ (position (kind tile) *honors*)))

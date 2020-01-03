@@ -161,9 +161,6 @@
     ((nil) (with-output-to-string (stream) (print-set-using-class set stream)))
     (t (print-set-using-class set stream))))
 
-(defgeneric print-set-using-class (set stream)
-  (:method :around (set stream) (call-next-method) set))
-
 (defmethod print-object ((set set) stream)
   (print-unreadable-object (set stream :type nil :identity nil)
     (format stream "~A " (type-of set))
@@ -174,11 +171,9 @@
   (:default-initargs
    :tile (a:required-argument :same-tile-set-tile)))
 
-;;; TODO: do typechecks in :BEFORE methods rather than :AFTER methods.
-(defmethod initialize-instance :after ((set same-tile-set) &key)
-  (let ((tile (same-tile-set-tile set)))
-    (unless (tile-p tile)
-      (error 'invalid-set-element :datum tile :expected-type 'tile))))
+(defmethod initialize-instance :before ((set same-tile-set) &key tile)
+  (unless (tile-p tile)
+    (error 'invalid-set-element :datum tile :expected-type 'tile)))
 
 (defmethod set= ((set-1 same-tile-set) (set-2 same-tile-set))
   (and (eq (class-of set-1) (class-of set-2))
@@ -194,12 +189,11 @@
   (:default-initargs
    :taken-from (a:required-argument :taken-from)))
 
-(defmethod initialize-instance :after ((set open-set) &key)
-  (let ((taken-from (taken-from set)))
-    (unless (member taken-from *other-players*)
-      (error 'invalid-tile-taken-from
-             :datum taken-from
-             :expected-type '#.`(member ,*other-players*)))))
+(defmethod initialize-instance :after ((set open-set) &key taken-from)
+  (unless (member taken-from *other-players*)
+    (error 'invalid-tile-taken-from
+           :datum taken-from
+           :expected-type '#.`(member ,*other-players*))))
 
 (p:define-protocol-class standard-set (set) ())
 
@@ -216,12 +210,11 @@
   (:default-initargs
    :lowest-tile (a:required-argument :lowest-tile)))
 
-(defmethod initialize-instance :after ((set shuntsu) &key)
-  (let ((tile (shuntsu-lowest-tile set)))
-    (unless (tile-p tile)
-      (error 'invalid-set-element :datum tile :expected-type 'tile))
-    (unless (and (suited-p tile) (<= (rank tile) 7))
-      (error 'invalid-shuntsu :offending-tile tile))))
+(defmethod initialize-instance :before ((set shuntsu) &key lowest-tile)
+  (unless (tile-p lowest-tile)
+    (error 'invalid-set-element :datum lowest-tile :expected-type 'tile))
+  (unless (and (suited-p lowest-tile) (<= (rank lowest-tile) 7))
+    (error 'invalid-shuntsu :offending-tile lowest-tile)))
 
 (defmethod tiles ((set shuntsu))
   (let* ((tile-1 (shuntsu-lowest-tile set))

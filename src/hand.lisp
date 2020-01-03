@@ -149,8 +149,7 @@
   ((%prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
    (%seat-wind :accessor seat-wind :initarg :seat-wind)
    (%winning-tile :accessor winning-tile :initarg :winning-tile)
-   ;; TODO: make it impossible to have antoi/anjun/ankou in locked sets.
-   ;; TODO: write tests for it.
+   ;; TODO: write tests for no antoi/anjun/ankou in locked sets.
    (%locked-sets :accessor locked-sets :initarg :locked-sets)
    (%free-tiles :accessor free-tiles :initarg :free-tiles)
    (%dora-list :accessor dora-list :initarg :dora-list)
@@ -226,26 +225,27 @@
           (error 'minjun-invalid-meld :hand hand :set set
                                       :taken-from taken-from))))))
 
-(defmethod initialize-instance :after ((hand hand) &key)
-  (check-hand-elt-type hand (prevailing-wind hand) '#.`(member ,@*winds*))
-  (check-hand-elt-type hand (seat-wind hand) '#.`(member ,@*winds*))
-  (check-hand-elt-type hand (winning-tile hand) 'tile)
-  (check-hand-elt-type-list hand (locked-sets hand)
-                            '(and set
-                              ;; TODO: separate this into a new check.
-                              (not (or antoi anjun ankou))))
-  (check-hand-elt-type-list hand (free-tiles hand) 'tile)
-  (check-hand-elt-type hand (dora-list hand) 'list)
-  (check-hand-elt-type-list hand (dora-list hand) 'tile 1 5)
-  (check-hand-elt-type-list hand (situations hand)
-                            `(or keyword (cons keyword))))
+(defmethod initialize-instance :before
+    ((hand hand)
+     &key prevailing-wind seat-wind winning-tile locked-sets
+       free-tiles dora-list situations)
+  (check-hand-elt-type hand prevailing-wind '#.`(member ,@*winds*))
+  (check-hand-elt-type hand seat-wind '#.`(member ,@*winds*))
+  (check-hand-elt-type hand winning-tile 'tile)
+  (check-hand-elt-type-list hand locked-sets 'set)
+  (check-hand-elt-type-list hand free-tiles 'tile)
+  (check-hand-elt-type hand dora-list 'list)
+  (check-hand-elt-type-list hand dora-list 'tile 1 5)
+  (check-hand-elt-type-list hand situations `(or keyword (cons keyword))))
 
-(defmethod initialize-instance :around ((hand hand) &key)
-  (prog1 (call-next-method)
-    (check-hand-situations hand)
-    (check-tile-count hand)
-    (check-at-most-four-tiles-of-a-kind hand)
-    (check-locked-minjuns-taken-from-kamicha hand)))
+(defmethod initialize-instance :after ((hand hand) &key)
+  ;; TODO better message for this
+  (check-hand-elt-type-list hand (locked-sets hand)
+                            '(not (or antoi anjun ankou)))
+  (check-hand-situations hand)
+  (check-tile-count hand)
+  (check-at-most-four-tiles-of-a-kind hand)
+  (check-locked-minjuns-taken-from-kamicha hand))
 
 (p:define-protocol-class tsumo-hand (hand) ())
 (p:define-protocol-class ron-hand (hand)
@@ -253,8 +253,8 @@
   (:default-initargs
    :losing-player (a:required-argument :losing-player)))
 
-(defmethod initialize-instance :after ((hand ron-hand) &key)
-  (check-hand-elt-type hand (losing-player hand)
+(defmethod initialize-instance :before ((hand ron-hand) &key losing-player)
+  (check-hand-elt-type hand losing-player
                        '#.`(member ,@*other-players*)))
 
 (p:define-protocol-class open-hand (hand) ())
@@ -269,9 +269,9 @@
     (unless (= dora-list-length ura-dora-list-length)
       (error 'invalid-dora-list-lengths :hand hand))))
 
-(defmethod initialize-instance :after ((hand closed-hand) &key)
-  (check-hand-elt-type hand (ura-dora-list hand) 'list)
-  (check-hand-elt-type-list hand (ura-dora-list hand) 'tile 0 5 t)
+(defmethod initialize-instance :before ((hand closed-hand) &key ura-dora-list)
+  (check-hand-elt-type hand ura-dora-list 'list)
+  (check-hand-elt-type-list hand ura-dora-list 'tile 0 5 t)
   ;; TODO: we allow the ura dora list to be empty since at this point
   ;; we do not know if riichi was declared.
   ;; Introduce the typechecks for that in situations.lisp.
