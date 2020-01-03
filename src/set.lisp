@@ -435,8 +435,6 @@
 (defmethod tiles ((set shiisuu-puutaa))
   (single-tiles set))
 
-;; TODO test kokushi and puutaa
-
 ;;; Set printer
 
 (defmethod print-set-using-class ((set closed-set) stream)
@@ -762,3 +760,6 @@
   (make-set-maker-winning-tile-ron minjun 3 #'try-make-shuntsu
                                    winning-tile win-from))
 
+;;; TODO kokushi musou
+;;; TODO shiisan puutaa
+;;; TODO shiisuu puutaa

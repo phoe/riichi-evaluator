@@ -164,4 +164,9 @@
                    do-all-daiminkan
                    do-all-shouminkan
                    do-all-anjun
-                   do-all-minjun)))))
+                   do-all-minjun
+                   ;; TODO: maybe add kokushi-musou.
+                   ;; TODO: MAYBE add puutaa. Generating all valid puutaa hands
+                   ;;       will be a pain unless we figure out a decent
+                   ;;       algorithm for that.
+                   )))))
