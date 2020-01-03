@@ -447,7 +447,7 @@
                             (:kamicha '(0))
                             (:toimen '(1))
                             (:shimocha '(2)))))
-        (print-tile-list result-tiles stream result-flips nil nil)))))
+        (print-tile-list result-tiles stream result-flips nil)))))
 
 ;;; Set reader
 

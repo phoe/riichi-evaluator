@@ -282,29 +282,25 @@
           into result
         finally (return (sort result #'tile<))))
 
-(defun print-tile-list (tiles &optional
-                                (stream t)
+(defun print-tile-list (tiles &optional (stream t)
+                              ;; NOTE: the following optional arguments are for
+                              ;; convenience of printing tile lists from inside
+                              ;; set.lisp. If you use them, the list will
+                              ;; no longer be readable using READ-TILE-LIST.
                                 (flipped-positions '())
-                                (shouminkan-positions '())
-                                (sort-p t))
+                                (shouminkan-positions '()))
   (labels
       ((thunk (stream)
-         (loop with sorted-tiles = (if sort-p
-                                       (sort (copy-list tiles) #'tile<)
-                                       tiles)
-               with last-suit = (suit (first sorted-tiles))
-               for tile in sorted-tiles
+         (loop with last-suit = (suit (first tiles))
+               for tile in tiles
                for i from 0
-               for rank = (if (suited-p tile)
-                              (rank tile)
-                              (1+ (position (kind tile) *honors*)))
                for suit = (if (suited-p tile) (suit tile) :honor)
                unless (eq suit last-suit)
                  do (princ (a:assoc-value *print-table* last-suit) stream)
                     (setf last-suit suit)
-               do (princ rank stream)
+               do (princ (rank tile) stream)
                when (member i flipped-positions)
-                 do (princ #\* stream)
+                 do (princ "*" stream)
                when (member i shouminkan-positions)
                  do (princ "**" stream)
                finally (princ (a:assoc-value *print-table* suit) stream))))
