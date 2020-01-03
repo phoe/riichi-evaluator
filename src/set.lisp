@@ -501,7 +501,7 @@
        (push (list rank nil) stack))
      (go :loop)
    :alpha-char
-     (dolist (elt stack)
+     (dolist (elt (nreverse stack))
        (destructuring-bind (number state) elt
          (let ((suit (a:rassoc-value *print-table* char
                                      :test #'char-equal)))
@@ -510,6 +510,7 @@
      (setf stack '())
      (go :loop)
    :flip-last-number
+     (unless stack (go :error))
      (destructuring-bind (rank state) (pop stack)
        (let ((new-state (ecase state
                           ((nil) :flip)
@@ -520,7 +521,7 @@
      (incf i)
      (go :start)
    :end
-     (return result)
+     (return (nreverse result))
    :error
      (error 'riichi-evaluator-error)))
 
@@ -702,3 +703,4 @@
                                    win-from)
   (make-set-maker-winning-tile-ron minjun 3 #'try-make-shuntsu
                                    winning-tile win-from))
+

@@ -166,100 +166,192 @@
 ;;; Set list reader and print
 
 (define-test print-read-set-positive
-  (flet ((test (string &rest args)
-           (let* ((set (apply #'make-instance args)))
-             (let ((result-string (rs:print-set set nil)))
-               (is string= string result-string
-                   "string=: ~A ~A" string result-string))
-             (let ((result-set (rs:read-set-from-string string)))
-               (is rs:set= set result-set
-                   "set=: ~A ~A" set result-set)))))
+  (flet ((test (strings &rest args)
+           (setf strings (a:ensure-list strings)) ;; TODO remove
+           (dolist (string strings)
+             (let* ((set (apply #'make-instance args)))
+               (let ((result-string (rs:print-set set nil)))
+                 (is string= (first strings) result-string
+                     "string=: ~A ~A" string result-string))
+               (let ((result-set (rs:read-set-from-string string)))
+                 (is rs:set= set result-set
+                     "set=: ~A ~A" set result-set))))))
     ;; Toitsu
-    (test "22p" 'rs:antoi :tile (rt:make-tile "2p"))
-    (test "2*2p" 'rs:mintoi :tile (rt:make-tile "2p")
-                            :taken-from :kamicha)
-    (test "2*2*p" 'rs:mintoi :tile (rt:make-tile "2p")
-                             :taken-from :toimen)
-    (test "22*p" 'rs:mintoi :tile (rt:make-tile "2p")
-                            :taken-from :shimocha)
-    (test "22z" 'rs:antoi :tile (rt:make-tile "2z"))
-    (test "2*2z" 'rs:mintoi :tile (rt:make-tile "2z")
-                            :taken-from :kamicha)
-    (test "2*2*z" 'rs:mintoi :tile (rt:make-tile "2z")
-                             :taken-from :toimen)
-    (test "22*z" 'rs:mintoi :tile (rt:make-tile "2z")
-                            :taken-from :shimocha)
+    (test '("22p" "2p2p") 'rs:antoi
+          :tile (rt:make-tile "2p"))
+    (test '("2*2p" "2*p2p") 'rs:mintoi
+          :tile (rt:make-tile "2p")
+          :taken-from :kamicha)
+    (test '("2*2*p" "2*p2*p") 'rs:mintoi
+          :tile (rt:make-tile "2p")
+          :taken-from :toimen)
+    (test '("22*p" "2p2*p") 'rs:mintoi
+          :tile (rt:make-tile "2p")
+          :taken-from :shimocha)
+    (test '("22z" "2z2z") 'rs:antoi
+          :tile (rt:make-tile "2z"))
+    (test '("2*2z" "2*z2z") 'rs:mintoi
+          :tile (rt:make-tile "2z")
+          :taken-from :kamicha)
+    (test '("2*2*z" "2*z2*z") 'rs:mintoi
+          :tile (rt:make-tile "2z")
+          :taken-from :toimen)
+    (test '("22*z" "2z2*z") 'rs:mintoi
+          :tile (rt:make-tile "2z")
+          :taken-from :shimocha)
     ;; Koutsu
-    (test "222p" 'rs:ankou :tile (rt:make-tile "2p"))
-    (test "2*22p" 'rs:minkou :tile (rt:make-tile "2p")
-                             :taken-from :kamicha)
-    (test "22*2p" 'rs:minkou :tile (rt:make-tile "2p")
-                             :taken-from :toimen)
-    (test "222*p" 'rs:minkou :tile (rt:make-tile "2p")
-                             :taken-from :shimocha)
-    (test "222z" 'rs:ankou :tile (rt:make-tile "2z"))
-    (test "2*22z" 'rs:minkou :tile (rt:make-tile "2z")
-                             :taken-from :kamicha)
-    (test "22*2z" 'rs:minkou :tile (rt:make-tile "2z")
-                             :taken-from :toimen)
-    (test "222*z" 'rs:minkou :tile (rt:make-tile "2z")
-                             :taken-from :shimocha)
+    (test '("222p" "2p2p2p" "22p2p" "2p22p") 'rs:ankou
+          :tile (rt:make-tile "2p"))
+    (test '("2*22p" "2*p2p2p" "2*2p2p" "2*p22p") 'rs:minkou
+          :tile (rt:make-tile "2p")
+          :taken-from :kamicha)
+    (test '("22*2p" "2p2*p2p" "22*p2p" "2p2*2p") 'rs:minkou
+          :tile (rt:make-tile "2p")
+          :taken-from :toimen)
+    (test '("222*p" "2p2p2*p" "22p2*p" "2p22*p") 'rs:minkou
+          :tile (rt:make-tile "2p")
+          :taken-from :shimocha)
+    (test '("222z" "2z2z2z" "22z2z" "2z22z") 'rs:ankou
+          :tile (rt:make-tile "2z"))
+    (test '("2*22z" "2*z2z2z" "2*2z2z" "2*z22z") 'rs:minkou
+          :tile (rt:make-tile "2z")
+          :taken-from :kamicha)
+    (test '("22*2z" "2z2*z2z" "22*z2z" "2z2*2z") 'rs:minkou
+          :tile (rt:make-tile "2z")
+          :taken-from :toimen)
+    (test '("222*z" "2z2z2*z" "22z2*z" "2z22*z") 'rs:minkou
+          :tile (rt:make-tile "2z")
+          :taken-from :shimocha)
     ;; Kantsu
-    (test "2222p" 'rs:ankan :tile (rt:make-tile "2p"))
-    (test "2*222p" 'rs:daiminkan :tile (rt:make-tile "2p")
-                                 :taken-from :kamicha)
-    (test "22*22p" 'rs:daiminkan :tile (rt:make-tile "2p")
-                                 :taken-from :toimen)
-    (test "2222*p" 'rs:daiminkan :tile (rt:make-tile "2p")
-                                 :taken-from :shimocha)
-    (test "2*2**22p" 'rs:shouminkan :tile (rt:make-tile "2p")
-                                    :taken-from :kamicha)
-    (test "22*2**2p" 'rs:shouminkan :tile (rt:make-tile "2p")
-                                    :taken-from :toimen)
-    (test "222*2**p" 'rs:shouminkan :tile (rt:make-tile "2p")
-                                    :taken-from :shimocha)
-    (test "2222z" 'rs:ankan :tile (rt:make-tile "2z"))
-    (test "2*222z" 'rs:daiminkan :tile (rt:make-tile "2z")
-                                 :taken-from :kamicha)
-    (test "22*22z" 'rs:daiminkan :tile (rt:make-tile "2z")
-                                 :taken-from :toimen)
-    (test "2222*z" 'rs:daiminkan :tile (rt:make-tile "2z")
-                                 :taken-from :shimocha)
-    (test "2*2**22z" 'rs:shouminkan :tile (rt:make-tile "2z")
-                                    :taken-from :kamicha)
-    (test "22*2**2z" 'rs:shouminkan :tile (rt:make-tile "2z")
-                                    :taken-from :toimen)
-    (test "222*2**z" 'rs:shouminkan :tile (rt:make-tile "2z")
-                                    :taken-from :shimocha)
+    (test '("2222p" "2p222p" "22p22p" "222p2p"
+            "2p2p22p" "2p22p2p" "22p2p2p" "2p2p2p2p")
+          'rs:ankan
+          :tile (rt:make-tile "2p"))
+    (test '("2*222p" "2*p222p" "2*2p22p" "2*22p2p"
+            "2*p2p22p" "2*p22p2p" "2*2p2p2p" "2*p2p2p2p")
+          'rs:daiminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :kamicha)
+    (test '("22*22p" "2p2*22p" "22*p22p" "22*2p2p"
+            "2p2*p22p" "2p2*2p2p" "22*p2p2p" "2p2*p2p2p")
+          'rs:daiminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :toimen)
+    (test '("2222*p" "2p222*p" "22p22*p" "222p2*p"
+            "2p2p22*p" "2p22p2*p" "22p2p2*p" "2p2p2p2*p")
+          'rs:daiminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :shimocha)
+    (test '("2*2**22p" "2*p2**22p" "2*2**p22p" "2*2**2p2p"
+            "2*p2**p22p" "2*p2**2p2p" "2*2**p2p2p" "2*p2**p2p2p")
+          'rs:shouminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :kamicha)
+    (test '("22*2**2p" "2p2*2**2p" "22*p2**2p" "22*2**p2p"
+            "2p2*p2**2p" "2p2*2**p2p" "22*p2**p2p" "2p2*p2**p2p")
+          'rs:shouminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :toimen)
+    (test '("222*2**p" "2p22*2**p" "22p2*2**p" "222*p2**p"
+            "2p2p2*2**p" "2p22*p2**p" "22p2*p2**p" "2p2p2*p2**p")
+          'rs:shouminkan
+          :tile (rt:make-tile "2p")
+          :taken-from :shimocha)
+    (test '("2222z" "2z222z" "22z22z" "222z2z"
+            "2z2z22z" "2z22z2z" "22z2z2z" "2z2z2z2z")
+          'rs:ankan
+          :tile (rt:make-tile "2z"))
+    (test '("2*222z" "2*z222z" "2*2z22z" "2*22z2z"
+            "2*z2z22z" "2*z22z2z" "2*2z2z2z" "2*z2z2z2z")
+          'rs:daiminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :kamicha)
+    (test '("22*22z" "2z2*22z" "22*z22z" "22*2z2z"
+            "2z2*z22z" "2z2*2z2z" "22*z2z2z" "2z2*z2z2z")
+          'rs:daiminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :toimen)
+    (test '("2222*z" "2z222*z" "22z22*z" "222z2*z"
+            "2z2z22*z" "2z22z2*z" "22z2z2*z" "2z2z2z2*z")
+          'rs:daiminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :shimocha)
+    (test '("2*2**22z" "2*z2**22z" "2*2**z22z" "2*2**2z2z"
+            "2*z2**z22z" "2*z2**2z2z" "2*2**z2z2z" "2*z2**z2z2z")
+          'rs:shouminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :kamicha)
+    (test '("22*2**2z" "2z2*2**2z" "22*z2**2z" "22*2**z2z"
+            "2z2*z2**2z" "2z2*2**z2z" "22*z2**z2z" "2z2*z2**z2z")
+          'rs:shouminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :toimen)
+    (test '("222*2**z" "2z22*2**z" "22z2*2**z" "222*z2**z"
+            "2z2z2*2**z" "2z22*z2**z" "22z2*z2**z" "2z2z2*z2**z")
+          'rs:shouminkan
+          :tile (rt:make-tile "2z")
+          :taken-from :shimocha)
     ;; Shuntsu
-    (test "123p" 'rs:anjun :lowest-tile (rt:make-tile "1p"))
-    (test "1*23p" 'rs:minjun :taken-from :kamicha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "1p"))
-    (test "2*13p" 'rs:minjun :taken-from :kamicha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "2p"))
-    (test "3*12p" 'rs:minjun :taken-from :kamicha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "3p"))
-    (test "21*3p" 'rs:minjun :taken-from :toimen
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "1p"))
-    (test "12*3p" 'rs:minjun :taken-from :toimen
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "2p"))
-    (test "13*2p" 'rs:minjun :taken-from :toimen
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "3p"))
-    (test "231*p" 'rs:minjun :taken-from :shimocha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "1p"))
-    (test "132*p" 'rs:minjun :taken-from :shimocha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "2p"))
-    (test "123*p" 'rs:minjun :taken-from :shimocha
-                             :lowest-tile (rt:make-tile "1p")
-                             :open-tile (rt:make-tile "3p"))))
+    (test '("123p" "132p" "213p" "231p" "312p" "321p"
+            "1p23p" "1p32p" "2p13p" "2p31p" "3p12p" "3p21p"
+            "12p3p" "13p2p" "21p3p" "23p1p" "31p2p" "32p1p"
+            "1p2p3p" "1p3p2p" "2p1p3p" "2p3p1p" "3p1p2p" "3p2p1p")
+          'rs:anjun
+          :lowest-tile (rt:make-tile "1p"))
+    (test '("1*23p" "1*p23p" "1*2p3p" "1*p2p3p"
+            "1*32p" "1*p32p" "1*3p2p" "1*p3p2p")
+          'rs:minjun
+          :taken-from :kamicha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "1p"))
+    (test '("2*13p" "2*p13p" "2*1p3p" "2*p1p3p"
+            "2*31p" "2*p31p" "2*3p1p" "2*p3p1p")
+          'rs:minjun
+          :taken-from :kamicha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "2p"))
+    (test '("3*12p" "3*p12p" "3*1p2p" "3*p1p2p"
+            "3*21p" "3*p21p" "3*2p1p" "3*p2p1p")
+          'rs:minjun
+          :taken-from :kamicha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "3p"))
+    (test '("21*3p" "2p1*3p" "21*p3p" "2p1*p3p"
+            "31*2p" "3p1*2p" "31*p2p" "3p1*p2p")
+          'rs:minjun
+          :taken-from :toimen
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "1p"))
+    (test '("12*3p" "1p2*3p" "12*p3p" "1p2*p3p"
+            "32*1p" "3p2*1p" "32*p1p" "3p2*p1p")
+          'rs:minjun
+          :taken-from :toimen
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "2p"))
+    (test '("13*2p" "1p3*2p" "13*p2p" "1p3*p2p"
+            "23*1p" "2p3*1p" "23*p1p" "2p3*p1p")
+          'rs:minjun
+          :taken-from :toimen
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "3p"))
+    (test '("231*p" "2p31*p" "23p1*p" "2p3p1*p"
+            "321*p" "3p21*p" "32p1*p" "3p2p1*p")
+          'rs:minjun
+          :taken-from :shimocha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "1p"))
+    (test '("132*p" "1p32*p" "13p2*p" "1p3p2*p"
+            "312*p" "3p12*p" "31p2*p" "3p1p2*p")
+          'rs:minjun
+          :taken-from :shimocha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "2p"))
+    (test '("123*p" "1p23*p" "12p3*p" "1p2p3*p"
+            "213*p" "2p13*p" "21p3*p" "2p1p3*p")
+          'rs:minjun
+          :taken-from :shimocha
+          :lowest-tile (rt:make-tile "1p")
+          :open-tile (rt:make-tile "3p"))))
 
 (define-test read-set-negative
   (flet ((test (string)
