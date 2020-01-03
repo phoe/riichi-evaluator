@@ -719,4 +719,26 @@
      :expected-tiles '()
      :expected-winning-tile [6p])))
 
-;;; TODO write tests that assert that kantsu are NOT detected in tiles
+(define-test try-make-set-kantsu
+  ;; NOTE: Kantsu must not be detected in free tiles, since they are always
+  ;;       present in the locked sets.
+  (test-make-set
+   :tiles '([2p] [2p] [2p]) :winning-tile [2p] :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]) (rs:ankou [2p]))
+   :expected-set nil
+   :expected-tiles '([2p] [2p] [2p])
+   :expected-winning-tile [2p])
+  (test-make-set
+   :tiles '([2p] [2p] [2p] [2p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]) (rs:ankou [2p]))
+   :expected-set nil
+   :expected-tiles '([2p] [2p] [2p] [2p])
+   :expected-winning-tile nil)
+  (do-all-other-players (player)
+    (test-make-set
+     :tiles '([2p] [2p] [2p]) :winning-tile [2p] :win-from player
+     :forbidden-sets (list (rs:antoi [2p]) (rs:mintoi [2p] player)
+                           (rs:ankou [2p]) (rs:minkou [2p] player))
+     :expected-set nil
+     :expected-tiles '([2p] [2p] [2p])
+     :expected-winning-tile [2p])))

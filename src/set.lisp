@@ -227,6 +227,15 @@
   (and (eq (class-of set-1) (class-of set-2))
        (tile= (shuntsu-lowest-tile set-1) (shuntsu-lowest-tile set-2))))
 
+(p:define-protocol-class open-tile-set (open-set)
+  ((%open-tile :reader open-tile :initarg :open-tile))
+  (:default-initargs
+   :open-tile (a:required-argument :open-tile)))
+
+(defmethod initialize-instance :before ((set open-tile-set) &key open-tile)
+  (unless (tile-p open-tile)
+    (error 'invalid-set-element :datum open-tile :expected-type 'tile)))
+
 (defmethod set-tile-count ((set shuntsu)) (values 3 0))
 
 (p:define-protocol-class full-hand-set (set) ())
@@ -309,29 +318,6 @@
               (when (< rank-difference 3)
                 (return-from verify-puuta-tiles (list tile-1 tile-2))))))))))
 
-(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set puuta)
-  ((%single-tiles :reader single-tiles :initarg :single-tiles))
-  (:default-initargs
-   :single-tiles (a:required-argument :single-tiles)))
-
-(defmethod initialize-instance :after ((set shiisan-puuta) &key)
-  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
-                                                          (single-tiles set)))))
-    (error 'invalid-puuta :offending-tiles offending-tiles)))
-
-(defmethod tiles ((set shiisan-puuta))
-  (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
-        #'tile<))
-
-(defclass shiisuu-puuta (fourteen-singles-set closed-set puuta) ())
-
-(defmethod initialize-instance :after ((set shiisuu-puuta) &key)
-  (a:when-let ((offending-tiles (verify-puuta-tiles (single-tiles set))))
-    (error 'invalid-puuta :offending-tiles offending-tiles)))
-
-(defmethod tiles ((set shiisuu-puuta))
-  (single-tiles set))
-
 ;;; Concrete classes
 
 (defclass antoi (toitsu closed-set) ())
@@ -366,22 +352,15 @@
 (defun anjun (lowest-tile)
   (make-instance 'anjun :lowest-tile lowest-tile))
 
-(defclass minjun (shuntsu open-set)
+(defclass minjun (shuntsu open-tile-set)
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
-   :taken-from :kamicha
-   :open-tile (a:required-argument :open-tile)))
+   ;; NOTE: this is a convenience default value. It is possible to create
+   ;; minjuns taken from other players as well.
+   :taken-from :kamicha))
 (defun minjun (lowest-tile open-tile taken-from)
   (make-instance 'minjun :lowest-tile lowest-tile
                          :open-tile open-tile :taken-from taken-from))
-
-(defmethod initialize-instance :before ((set minjun) &key open-tile taken-from)
-  (unless (tile-p open-tile)
-    (error 'invalid-set-element :datum open-tile :expected-type 'tile))
-  (unless (member taken-from *other-players*)
-    (error 'invalid-tile-taken-from
-           :datum taken-from
-           :expected-type '#.`(member ,*other-players*))))
 
 (defmethod initialize-instance :after ((set minjun) &key)
   (let ((tile (open-tile set))
@@ -394,10 +373,47 @@
        (call-next-method)))
 
 (defclass closed-kokushi-musou (kokushi-musou closed-set) ())
-(defclass open-kokushi-musou (kokushi-musou open-set) ())
+(defun closed-kokushi-musou (pair-tile)
+  (make-instance 'closed-kokushi-musou :pair-tile pair-tile))
+
+(defclass open-kokushi-musou (kokushi-musou open-tile-set) ())
+(defun open-kokushi-musou (pair-tile open-tile taken-from)
+  (make-instance 'open-kokushi-musou :pair-tile pair-tile :open-tile open-tile
+                                     :taken-from taken-from))
+
+(defmethod initialize-instance :after ((set open-kokushi-musou) &key)
+  (let ((open-tile (open-tile set)))
+    (unless (or (terminal-p open-tile) (honor-p open-tile))
+      (error 'invalid-kokushi-musou :offending-tile open-tile))))
+
 (defmethod set= ((set-1 open-kokushi-musou) (set-2 open-kokushi-musou))
   (and (tile= (open-tile set-1) (open-tile set-2))
        (call-next-method)))
+
+(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set puuta)
+  ((%single-tiles :reader single-tiles :initarg :single-tiles))
+  (:default-initargs
+   :single-tiles (a:required-argument :single-tiles)))
+
+(defmethod initialize-instance :after ((set shiisan-puuta) &key)
+  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
+                                                          (single-tiles set)))))
+    (error 'invalid-puuta :offending-tiles offending-tiles)))
+
+(defmethod tiles ((set shiisan-puuta))
+  (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
+        #'tile<))
+
+(defclass shiisuu-puuta (fourteen-singles-set closed-set puuta) ())
+
+(defmethod initialize-instance :after ((set shiisuu-puuta) &key)
+  (a:when-let ((offending-tiles (verify-puuta-tiles (single-tiles set))))
+    (error 'invalid-puuta :offending-tiles offending-tiles)))
+
+(defmethod tiles ((set shiisuu-puuta))
+  (single-tiles set))
+
+;; TODO convenience constructors
 
 ;;; Set printer
 
@@ -442,24 +458,21 @@
                             (:shimocha '(2)))))
         (print-tile-list result-tiles stream result-flips nil)))))
 
-;;; Set reader
+(defmethod print-set-using-class ((set open-kokushi-musou) stream)
+  (let* ((open-tile (open-tile set))
+         (tiles (remove open-tile (tiles set) :test #'tile= :count 1)))
+    (destructuring-bind (first . rest) tiles
+      (let ((result-tiles (case (taken-from set)
+                            (:kamicha (list* open-tile first rest))
+                            (:toimen (list* first open-tile rest))
+                            (:shimocha (append tiles (list open-tile)))))
+            (result-flips (case (taken-from set)
+                            (:kamicha '(0))
+                            (:toimen '(1))
+                            (:shimocha '(13)))))
+        (print-tile-list result-tiles stream result-flips nil)))))
 
-(defun try-read-make-tile (rank suit)
-  (if (eq suit :honor)
-      (make-instance 'honor-tile :kind (nth (1- rank) *honors*))
-      (make-instance 'suited-tile :suit suit :rank rank)))
-
-(defun read-set (stream)
-  (let ((string (loop for char = (peek-char t stream nil :eof t)
-                      while (or (alphanumericp char) (eql char #\*))
-                      collect char)))
-    (read-set-from-string string)))
-
-(defun read-set-from-string (string)
-  (flet ((complain () (error 'set-reader-error :offending-string string)))
-    (handler-case (let ((ordered-tiles (parse-set-string string)))
-                    (or (try-read-set ordered-tiles) (complain)))
-      (riichi-evaluator-error () (complain)))))
+;;; Set reader - string to parsed tiles
 
 (defun parse-set-string (string)
   (prog ((stack '())
@@ -503,6 +516,24 @@
      (return (nreverse result))
    :error
      (error 'riichi-evaluator-error)))
+
+;;; Set reader - parsed tiles to set
+
+(defun read-set (stream)
+  (let ((string (loop for char = (peek-char t stream nil :eof t)
+                      while (or (alphanumericp char) (eql char #\*))
+                      collect (read-char stream t nil t))))
+    (read-set-from-string string)))
+
+(defun read-set-from-string (string)
+  (flet ((complain () (error 'set-reader-error :offending-string string)))
+    (handler-case (or (try-read-set (parse-set-string string)) (complain))
+      (riichi-evaluator-error () (complain)))))
+
+(defun try-read-make-tile (rank suit)
+  (if (eq suit :honor)
+      (make-instance 'honor-tile :kind (nth (1- rank) *honors*))
+      (make-instance 'suited-tile :suit suit :rank rank)))
 
 (defgeneric try-read-set (ordered)
   (:method-combination chained-or))
@@ -587,6 +618,32 @@
                                      (2 :shimocha))))
                   (minjun lowest-tile open-tile taken-from)))
               (anjun lowest-tile)))))))
+
+(defun tiles-pair-tile (tiles)
+  (loop for tile in tiles
+        when (= 2 (count tile tiles :test #'tile=))
+          return tile))
+
+(defmethod try-read-set :kokushi-musou (ordered)
+  (when (= 14 (length ordered))
+    (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
+                         ordered)))
+      (when (null (set-difference tiles *kokushi-musou-tiles* :test #'tile=))
+        (let ((pair-tile (tiles-pair-tile tiles)))
+          (if (member :flip ordered :key #'third)
+              (when (and (= 1 (count :flip ordered :key #'third))
+                         (= 13 (count nil ordered :key #'third)))
+                (let* ((open-position (position :flip ordered :key #'third))
+                       (open-parsed-tile (nth open-position ordered))
+                       (open-rank (first open-parsed-tile))
+                       (open-suit (second open-parsed-tile))
+                       (open-tile (try-read-make-tile open-rank open-suit))
+                       (taken-from (ecase open-position
+                                     (0 :kamicha)
+                                     (1 :toimen)
+                                     (13 :shimocha))))
+                  (open-kokushi-musou pair-tile open-tile taken-from)))
+              (closed-kokushi-musou pair-tile)))))))
 
 ;;; Tile-set matcher
 

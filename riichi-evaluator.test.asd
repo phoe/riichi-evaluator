@@ -37,4 +37,8 @@
                (:file "tiles")
                (:file "set")
                (:file "hand")
-               ))
+               )
+  :perform
+  (test-op (o c)
+           (symbol-call '#:parachute '#:test :riichi-evaluator.test
+                        :report (find-symbol "INTERACTIVE" "PARACHUTE"))))
