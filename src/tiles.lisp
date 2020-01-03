@@ -282,12 +282,19 @@
           into result
         finally (return (sort result #'tile<))))
 
-(defun print-tile-list (tiles &optional (stream t))
+(defun print-tile-list (tiles &optional
+                                (stream t)
+                                (flipped-positions '())
+                                (shouminkan-positions '())
+                                (sort-p t))
   (labels
       ((thunk (stream)
-         (loop with sorted-tiles = (sort (copy-list tiles) #'tile<)
+         (loop with sorted-tiles = (if sort-p
+                                       (sort (copy-list tiles) #'tile<)
+                                       tiles)
                with last-suit = (suit (first sorted-tiles))
                for tile in sorted-tiles
+               for i from 0
                for rank = (if (suited-p tile)
                               (rank tile)
                               (1+ (position (kind tile) *honors*)))
@@ -296,6 +303,10 @@
                  do (princ (a:assoc-value *print-table* last-suit) stream)
                     (setf last-suit suit)
                do (princ rank stream)
+               when (member i flipped-positions)
+                 do (princ #\* stream)
+               when (member i shouminkan-positions)
+                 do (princ "**" stream)
                finally (princ (a:assoc-value *print-table* suit) stream))))
     (case stream
       ((t) (thunk *standard-output*))

@@ -382,7 +382,8 @@
 
 ;;; Tile-set matcher tests
 ;;; NOTE: we do not test any kans, since they must always be declared and are
-;;; therefore only allowed in the locked sets list.
+;;; therefore only allowed in the locked sets list. Therefore, the matcher must
+;;; not detect any kans.
 
 (defun test-make-set (&key tiles winning-tile win-from forbidden-sets
                         expected-set expected-tiles expected-winning-tile)
@@ -407,9 +408,21 @@
    :expected-set nil
    :expected-tiles '([2p])
    :expected-winning-tile [3p])
+  (test-make-set
+   :tiles '([2p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set nil
+   :expected-tiles '([2p] [3p])
+   :expected-winning-tile nil)
   ;; 2p + 2p → 22p
   (test-make-set
    :tiles '([2p]) :winning-tile [2p] :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:antoi [2p])
+   :expected-tiles '()
+   :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [2p]) :winning-tile nil :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:antoi [2p])
    :expected-tiles '()
@@ -421,6 +434,12 @@
    :expected-set (rs:antoi [2p])
    :expected-tiles '()
    :expected-winning-tile [3p])
+  (test-make-set
+   :tiles '([2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:antoi [2p])
+   :expected-tiles '([3p])
+   :expected-winning-tile nil)
   ;; 23p + 3p → 33p
   (test-make-set
    :tiles '([2p] [3p]) :winning-tile [3p] :win-from :tsumo
@@ -428,7 +447,14 @@
    :expected-set (rs:antoi [3p])
    :expected-tiles '([2p])
    :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [3p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:antoi [3p])
+   :expected-tiles '([2p])
+   :expected-winning-tile nil)
   ;; Kokushi musou pair search
+  ;; TODO: fix this in the future, kokushi might come in the way
   (let ((tiles '([1m] [9m] [1p] [9p] [1s] [9s]
                  [EW] [SW] [WW] [NW] [WD] [GD] [RD])))
     (dolist (tile tiles)
@@ -489,9 +515,21 @@
    :expected-set nil
    :expected-tiles '([2p] [2p])
    :expected-winning-tile [3p])
+  (test-make-set
+   :tiles '([2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]))
+   :expected-set nil
+   :expected-tiles '([2p] [2p] [3p])
+   :expected-winning-tile nil)
   ;; 22p + 2p → 222p
   (test-make-set
    :tiles '([2p] [2p]) :winning-tile [2p] :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]))
+   :expected-set (rs:ankou [2p])
+   :expected-tiles '()
+   :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [2p] [2p]) :winning-tile nil :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:ankou [2p])
    :expected-tiles '()
@@ -503,9 +541,21 @@
    :expected-set (rs:ankou [2p])
    :expected-tiles '()
    :expected-winning-tile [3p])
+  (test-make-set
+   :tiles '([2p] [2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]))
+   :expected-set (rs:ankou [2p])
+   :expected-tiles '([3p])
+   :expected-winning-tile nil)
   ;; 233p + 3p → 333p
   (test-make-set
    :tiles '([2p] [3p] [3p]) :winning-tile [3p] :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:ankou [3p])
+   :expected-tiles '([2p])
+   :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [3p] [3p] [3p]) :winning-tile nil :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:ankou [3p])
    :expected-tiles '([2p])
@@ -573,9 +623,21 @@
    :expected-set nil
    :expected-tiles '([2p] [5p])
    :expected-winning-tile [3p])
+  (test-make-set
+   :tiles '([2p] [5p] [3p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set nil
+   :expected-tiles '([2p] [5p] [3p])
+   :expected-winning-tile nil)
   ;; 24p + 3p → 234p
   (test-make-set
    :tiles '([2p] [4p]) :winning-tile [3p] :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:anjun [2p])
+   :expected-tiles '()
+   :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [4p] [3p]) :winning-tile nil :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
    :expected-tiles '()
@@ -587,9 +649,21 @@
    :expected-set (rs:anjun [2p])
    :expected-tiles '()
    :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([2p] [3p] [4p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:anjun [2p])
+   :expected-tiles '()
+   :expected-winning-tile nil)
   ;; 122p + 3p → 123p
   (test-make-set
    :tiles '([1p] [2p] [2p]) :winning-tile [3p] :win-from :tsumo
+   :forbidden-sets (list (rs:antoi [2p]))
+   :expected-set (rs:anjun [1p])
+   :expected-tiles '([2p])
+   :expected-winning-tile nil)
+  (test-make-set
+   :tiles '([1p] [2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:anjun [1p])
    :expected-tiles '([2p])
@@ -600,7 +674,13 @@
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
    :expected-tiles '()
-   :expected-winning-tile [6p]))
+   :expected-winning-tile [6p])
+  (test-make-set
+   :tiles '([2p] [3p] [4p] [6p]) :winning-tile nil :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:anjun [2p])
+   :expected-tiles '([6p])
+   :expected-winning-tile nil))
 
 (define-test try-make-set-minjun
   (do-all-other-players (player)
@@ -640,3 +720,5 @@
      :expected-set (rs:anjun [2p])
      :expected-tiles '()
      :expected-winning-tile [6p])))
+
+;;; TODO write tests that assert that kantsu are NOT detected in tiles
