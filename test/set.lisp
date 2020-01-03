@@ -167,7 +167,6 @@
 
 (define-test print-read-set-positive
   (flet ((test (strings &rest args)
-           (setf strings (a:ensure-list strings)) ;; TODO remove
            (dolist (string strings)
              (let* ((set (apply #'make-instance args)))
                (let ((result-string (rs:print-set set nil)))
