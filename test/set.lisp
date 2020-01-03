@@ -177,119 +177,119 @@
                  (is rs:set= set result-set
                      "set=: ~A ~A" set result-set))))))
     ;; Toitsu
-    (test '("22p" "2p2p") 'rs:antoi
-          :tile (rt:make-tile "2p"))
-    (test '("2*2p" "2*p2p") 'rs:mintoi
-          :tile (rt:make-tile "2p")
+    (test '("66p" "6p6p") 'rs:antoi
+          :tile (rt:make-tile "6p"))
+    (test '("6*6p" "6*p6p") 'rs:mintoi
+          :tile (rt:make-tile "6p")
           :taken-from :kamicha)
-    (test '("2*2*p" "2*p2*p") 'rs:mintoi
-          :tile (rt:make-tile "2p")
+    (test '("6*6*p" "6*p6*p") 'rs:mintoi
+          :tile (rt:make-tile "6p")
           :taken-from :toimen)
-    (test '("22*p" "2p2*p") 'rs:mintoi
-          :tile (rt:make-tile "2p")
+    (test '("66*p" "6p6*p") 'rs:mintoi
+          :tile (rt:make-tile "6p")
           :taken-from :shimocha)
-    (test '("22z" "2z2z") 'rs:antoi
-          :tile (rt:make-tile "2z"))
-    (test '("2*2z" "2*z2z") 'rs:mintoi
-          :tile (rt:make-tile "2z")
+    (test '("66z" "6z6z") 'rs:antoi
+          :tile (rt:make-tile "6z"))
+    (test '("6*6z" "6*z6z") 'rs:mintoi
+          :tile (rt:make-tile "6z")
           :taken-from :kamicha)
-    (test '("2*2*z" "2*z2*z") 'rs:mintoi
-          :tile (rt:make-tile "2z")
+    (test '("6*6*z" "6*z6*z") 'rs:mintoi
+          :tile (rt:make-tile "6z")
           :taken-from :toimen)
-    (test '("22*z" "2z2*z") 'rs:mintoi
-          :tile (rt:make-tile "2z")
+    (test '("66*z" "6z6*z") 'rs:mintoi
+          :tile (rt:make-tile "6z")
           :taken-from :shimocha)
     ;; Koutsu
-    (test '("222p" "2p2p2p" "22p2p" "2p22p") 'rs:ankou
-          :tile (rt:make-tile "2p"))
-    (test '("2*22p" "2*p2p2p" "2*2p2p" "2*p22p") 'rs:minkou
-          :tile (rt:make-tile "2p")
+    (test '("666p" "6p6p6p" "66p6p" "6p66p") 'rs:ankou
+          :tile (rt:make-tile "6p"))
+    (test '("6*66p" "6*p6p6p" "6*6p6p" "6*p66p") 'rs:minkou
+          :tile (rt:make-tile "6p")
           :taken-from :kamicha)
-    (test '("22*2p" "2p2*p2p" "22*p2p" "2p2*2p") 'rs:minkou
-          :tile (rt:make-tile "2p")
+    (test '("66*6p" "6p6*p6p" "66*p6p" "6p6*6p") 'rs:minkou
+          :tile (rt:make-tile "6p")
           :taken-from :toimen)
-    (test '("222*p" "2p2p2*p" "22p2*p" "2p22*p") 'rs:minkou
-          :tile (rt:make-tile "2p")
+    (test '("666*p" "6p6p6*p" "66p6*p" "6p66*p") 'rs:minkou
+          :tile (rt:make-tile "6p")
           :taken-from :shimocha)
-    (test '("222z" "2z2z2z" "22z2z" "2z22z") 'rs:ankou
-          :tile (rt:make-tile "2z"))
-    (test '("2*22z" "2*z2z2z" "2*2z2z" "2*z22z") 'rs:minkou
-          :tile (rt:make-tile "2z")
+    (test '("666z" "6z6z6z" "66z6z" "6z66z") 'rs:ankou
+          :tile (rt:make-tile "6z"))
+    (test '("6*66z" "6*z6z6z" "6*6z6z" "6*z66z") 'rs:minkou
+          :tile (rt:make-tile "6z")
           :taken-from :kamicha)
-    (test '("22*2z" "2z2*z2z" "22*z2z" "2z2*2z") 'rs:minkou
-          :tile (rt:make-tile "2z")
+    (test '("66*6z" "6z6*z6z" "66*z6z" "6z6*6z") 'rs:minkou
+          :tile (rt:make-tile "6z")
           :taken-from :toimen)
-    (test '("222*z" "2z2z2*z" "22z2*z" "2z22*z") 'rs:minkou
-          :tile (rt:make-tile "2z")
+    (test '("666*z" "6z6z6*z" "66z6*z" "6z66*z") 'rs:minkou
+          :tile (rt:make-tile "6z")
           :taken-from :shimocha)
     ;; Kantsu
-    (test '("2222p" "2p222p" "22p22p" "222p2p"
-            "2p2p22p" "2p22p2p" "22p2p2p" "2p2p2p2p")
+    (test '("6666p" "6p666p" "66p66p" "666p6p"
+            "6p6p66p" "6p66p6p" "66p6p6p" "6p6p6p6p")
           'rs:ankan
-          :tile (rt:make-tile "2p"))
-    (test '("2*222p" "2*p222p" "2*2p22p" "2*22p2p"
-            "2*p2p22p" "2*p22p2p" "2*2p2p2p" "2*p2p2p2p")
+          :tile (rt:make-tile "6p"))
+    (test '("6*666p" "6*p666p" "6*6p66p" "6*66p6p"
+            "6*p6p66p" "6*p66p6p" "6*6p6p6p" "6*p6p6p6p")
           'rs:daiminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :kamicha)
-    (test '("22*22p" "2p2*22p" "22*p22p" "22*2p2p"
-            "2p2*p22p" "2p2*2p2p" "22*p2p2p" "2p2*p2p2p")
+    (test '("66*66p" "6p6*66p" "66*p66p" "66*6p6p"
+            "6p6*p66p" "6p6*6p6p" "66*p6p6p" "6p6*p6p6p")
           'rs:daiminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :toimen)
-    (test '("2222*p" "2p222*p" "22p22*p" "222p2*p"
-            "2p2p22*p" "2p22p2*p" "22p2p2*p" "2p2p2p2*p")
+    (test '("6666*p" "6p666*p" "66p66*p" "666p6*p"
+            "6p6p66*p" "6p66p6*p" "66p6p6*p" "6p6p6p6*p")
           'rs:daiminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :shimocha)
-    (test '("2*2**22p" "2*p2**22p" "2*2**p22p" "2*2**2p2p"
-            "2*p2**p22p" "2*p2**2p2p" "2*2**p2p2p" "2*p2**p2p2p")
+    (test '("6*6**66p" "6*p6**66p" "6*6**p66p" "6*6**6p6p"
+            "6*p6**p66p" "6*p6**6p6p" "6*6**p6p6p" "6*p6**p6p6p")
           'rs:shouminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :kamicha)
-    (test '("22*2**2p" "2p2*2**2p" "22*p2**2p" "22*2**p2p"
-            "2p2*p2**2p" "2p2*2**p2p" "22*p2**p2p" "2p2*p2**p2p")
+    (test '("66*6**6p" "6p6*6**6p" "66*p6**6p" "66*6**p6p"
+            "6p6*p6**6p" "6p6*6**p6p" "66*p6**p6p" "6p6*p6**p6p")
           'rs:shouminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :toimen)
-    (test '("222*2**p" "2p22*2**p" "22p2*2**p" "222*p2**p"
-            "2p2p2*2**p" "2p22*p2**p" "22p2*p2**p" "2p2p2*p2**p")
+    (test '("666*6**p" "6p66*6**p" "66p6*6**p" "666*p6**p"
+            "6p6p6*6**p" "6p66*p6**p" "66p6*p6**p" "6p6p6*p6**p")
           'rs:shouminkan
-          :tile (rt:make-tile "2p")
+          :tile (rt:make-tile "6p")
           :taken-from :shimocha)
-    (test '("2222z" "2z222z" "22z22z" "222z2z"
-            "2z2z22z" "2z22z2z" "22z2z2z" "2z2z2z2z")
+    (test '("6666z" "6z666z" "66z66z" "666z6z"
+            "6z6z66z" "6z66z6z" "66z6z6z" "6z6z6z6z")
           'rs:ankan
-          :tile (rt:make-tile "2z"))
-    (test '("2*222z" "2*z222z" "2*2z22z" "2*22z2z"
-            "2*z2z22z" "2*z22z2z" "2*2z2z2z" "2*z2z2z2z")
+          :tile (rt:make-tile "6z"))
+    (test '("6*666z" "6*z666z" "6*6z66z" "6*66z6z"
+            "6*z6z66z" "6*z66z6z" "6*6z6z6z" "6*z6z6z6z")
           'rs:daiminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :kamicha)
-    (test '("22*22z" "2z2*22z" "22*z22z" "22*2z2z"
-            "2z2*z22z" "2z2*2z2z" "22*z2z2z" "2z2*z2z2z")
+    (test '("66*66z" "6z6*66z" "66*z66z" "66*6z6z"
+            "6z6*z66z" "6z6*6z6z" "66*z6z6z" "6z6*z6z6z")
           'rs:daiminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :toimen)
-    (test '("2222*z" "2z222*z" "22z22*z" "222z2*z"
-            "2z2z22*z" "2z22z2*z" "22z2z2*z" "2z2z2z2*z")
+    (test '("6666*z" "6z666*z" "66z66*z" "666z6*z"
+            "6z6z66*z" "6z66z6*z" "66z6z6*z" "6z6z6z6*z")
           'rs:daiminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :shimocha)
-    (test '("2*2**22z" "2*z2**22z" "2*2**z22z" "2*2**2z2z"
-            "2*z2**z22z" "2*z2**2z2z" "2*2**z2z2z" "2*z2**z2z2z")
+    (test '("6*6**66z" "6*z6**66z" "6*6**z66z" "6*6**6z6z"
+            "6*z6**z66z" "6*z6**6z6z" "6*6**z6z6z" "6*z6**z6z6z")
           'rs:shouminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :kamicha)
-    (test '("22*2**2z" "2z2*2**2z" "22*z2**2z" "22*2**z2z"
-            "2z2*z2**2z" "2z2*2**z2z" "22*z2**z2z" "2z2*z2**z2z")
+    (test '("66*6**6z" "6z6*6**6z" "66*z6**6z" "66*6**z6z"
+            "6z6*z6**6z" "6z6*6**z6z" "66*z6**z6z" "6z6*z6**z6z")
           'rs:shouminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :toimen)
-    (test '("222*2**z" "2z22*2**z" "22z2*2**z" "222*z2**z"
-            "2z2z2*2**z" "2z22*z2**z" "22z2*z2**z" "2z2z2*z2**z")
+    (test '("666*6**z" "6z66*6**z" "66z6*6**z" "666*z6**z"
+            "6z6z6*6**z" "6z66*z6**z" "66z6*z6**z" "6z6z6*z6**z")
           'rs:shouminkan
-          :tile (rt:make-tile "2z")
+          :tile (rt:make-tile "6z")
           :taken-from :shimocha)
     ;; Shuntsu
     (test '("123p" "132p" "213p" "231p" "312p" "321p"

@@ -485,9 +485,9 @@
 (defun parse-set-string (string)
   (prog ((stack '())
          (result '())
-         (char nil)
          (i 0)
-         (length (length string)))
+         (length (length string))
+         char)
    :start
      (when (= i length) (go :end))
    :pop-char
