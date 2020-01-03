@@ -30,6 +30,8 @@
                     (#:m #:closer-mop))
   (:shadow #:set)
   (:export
+   ;; Variables
+   #:*kokushi-musou-tiles*
    ;; Conditions
    #:invalid-set-element #:invalid-tile-taken-from #:open-tile-not-in-set
    #:invalid-shuntsu #:invalid-kokushi-musou
@@ -414,6 +416,7 @@
   (single-tiles set))
 
 ;; TODO convenience constructors
+;; TODO test kokushi and puuta
 
 ;;; Set printer
 
