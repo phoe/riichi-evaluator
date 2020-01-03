@@ -33,20 +33,35 @@
    ;; Variables
    #:*kokushi-musou-tiles*
    ;; Conditions
-   #:invalid-set-element #:invalid-tile-taken-from #:open-tile-not-in-set
-   #:invalid-shuntsu #:invalid-kokushi-musou
+   #:invalid-set-element #:invalid-tile-taken-from
+   #:open-tile-not-in-set #:open-tile #:tiles
+   #:invalid-shuntsu #:offending-tile
    #:set-reader-error #:offending-string
-   ;; Condition accessors
-   #:open-tile #:tiles #:taken-from
+   #:invalid-kokushi-musou
+   #:singles-set-contains-duplicates
+   #:twelve-singles-and-pair-set-contains-duplicates #:pair-tile #:single-tiles
+   #:invalid-puutaa #:offending-tiles
+   #:full-hand-set-invalid-tile-count #:expected-tile-count
    ;; Protocol
    #:set #:tiles #:set= #:set-tile-count
-   #:same-tile-set #:closed-set #:open-set #:taken-from #:standard-set
-   #:shuntsu #:toitsu #:koutsu #:kantsu
-   #:full-hand-set #:twelve-singles-and-pair-set #:pair-tile
+   #:same-tile-set #:same-tile-set-tile
+   #:closed-set #:open-set #:taken-from
+   #:standard-set
+   #:toitsu #:koutsu #:kantsu #:shuntsu
+   #:open-tile-set #:open-tile
+   #:full-hand-set
+   #:singles-set #:single-tiles
+   #:twelve-singles-and-pair-set #:pair-tile
+   #:fourteen-singles-set #:single-tiles
    #:kokushi-musou
+   #:puutaa
    ;; Concrete classes
-   #:antoi #:mintoi #:anjun #:minjun #:ankou #:minkou
+   #:antoi #:mintoi
+   #:ankou #:minkou
    #:ankan #:daiminkan #:shouminkan
+   #:anjun #:minjun
+   #:closed-kokushi-musou #:open-kokushi-musou
+   #:shiisan-puutaa #:shiisuu-puutaa
    ;; Set reader and printer
    #:print-set #:read-set #:read-set-from-string
    ;; Tile-set matcher
@@ -125,14 +140,14 @@
                      list ~S, which contains the pair tile ~S."
              (single-tiles condition) (pair-tile condition)))))
 
-(define-condition invalid-puuta (riichi-evaluator-error)
+(define-condition invalid-puutaa (riichi-evaluator-error)
   ((%offending-tiles :reader offending-tiles :initarg :offending-tiles))
   (:default-initargs
    :offending-tiles (a:required-argument :offending-tiles))
   (:report
    (lambda (condition stream)
      (destructuring-bind (tile-1 tile-2) (offending-tiles condition)
-       (format stream "Attempted to make a puuta with neighboring tiles ~A and ~
+       (format stream "Attempted to make a puutaa with neighboring tiles ~A and ~
                       ~A." tile-1 tile-2)))))
 
 (define-condition full-hand-set-invalid-tile-count (riichi-evaluator-error)
@@ -308,9 +323,9 @@
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
 
-(p:define-protocol-class puuta (singles-set) ())
+(p:define-protocol-class puutaa (singles-set) ())
 
-(defun verify-puuta-tiles (tiles)
+(defun verify-puutaa-tiles (tiles)
   (dolist (tile-1 tiles)
     (unless (honor-p tile-1)
       (dolist (tile-2 (remove tile-1 tiles :count 1 :test #'tile=))
@@ -318,7 +333,7 @@
           (when (eq (suit tile-1) (suit tile-2))
             (let ((rank-difference (abs (- (rank tile-1) (rank tile-2)))))
               (when (< rank-difference 3)
-                (return-from verify-puuta-tiles (list tile-1 tile-2))))))))))
+                (return-from verify-puutaa-tiles (list tile-1 tile-2))))))))))
 
 ;;; Concrete classes
 
@@ -392,31 +407,35 @@
   (and (tile= (open-tile set-1) (open-tile set-2))
        (call-next-method)))
 
-(defclass shiisan-puuta (twelve-singles-and-pair-set closed-set puuta)
+(defclass shiisan-puutaa (twelve-singles-and-pair-set closed-set puutaa)
   ((%single-tiles :reader single-tiles :initarg :single-tiles))
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
+(defun shiisan-puutaa (pair-tile single-tiles)
+  (make-instance 'shiisan-puutaa :pair-tile pair-tile
+                                :single-tiles single-tiles))
 
-(defmethod initialize-instance :after ((set shiisan-puuta) &key)
-  (a:when-let ((offending-tiles (verify-puuta-tiles (cons (pair-tile set)
+(defmethod initialize-instance :after ((set shiisan-puutaa) &key)
+  (a:when-let ((offending-tiles (verify-puutaa-tiles (cons (pair-tile set)
                                                           (single-tiles set)))))
-    (error 'invalid-puuta :offending-tiles offending-tiles)))
+    (error 'invalid-puutaa :offending-tiles offending-tiles)))
 
-(defmethod tiles ((set shiisan-puuta))
+(defmethod tiles ((set shiisan-puutaa))
   (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
         #'tile<))
 
-(defclass shiisuu-puuta (fourteen-singles-set closed-set puuta) ())
+(defclass shiisuu-puutaa (fourteen-singles-set closed-set puutaa) ())
+(defun shiisuu-puutaa (single-tiles)
+  (make-instance 'shiisuu-puutaa :single-tiles single-tiles))
 
-(defmethod initialize-instance :after ((set shiisuu-puuta) &key)
-  (a:when-let ((offending-tiles (verify-puuta-tiles (single-tiles set))))
-    (error 'invalid-puuta :offending-tiles offending-tiles)))
+(defmethod initialize-instance :after ((set shiisuu-puutaa) &key)
+  (a:when-let ((offending-tiles (verify-puutaa-tiles (single-tiles set))))
+    (error 'invalid-puutaa :offending-tiles offending-tiles)))
 
-(defmethod tiles ((set shiisuu-puuta))
+(defmethod tiles ((set shiisuu-puutaa))
   (single-tiles set))
 
-;; TODO convenience constructors
-;; TODO test kokushi and puuta
+;; TODO test kokushi and puutaa
 
 ;;; Set printer
 
