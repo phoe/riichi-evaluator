@@ -34,7 +34,7 @@
    #:invalid-hand #:invalid-hand-element
    #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
-   #:invalid-dora-list-lengths
+   #:invalid-dora-list-lengths #:closed-locked-set
    ;; Protocol
    #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
@@ -56,7 +56,7 @@
   (:default-initargs
    :hand (a:required-argument :hand)))
 
-;;; TODO: we need more descriptive conditions instead of ones with standard
+;;; TODO: we may need more descriptive conditions instead of ones with standard
 ;;; type error messages.
 (define-condition invalid-hand-element (invalid-hand type-error) ())
 
@@ -143,13 +143,20 @@
                        are not of the same length."
                (dora-list hand) (ura-dora-list hand) hand)))))
 
+(define-condition closed-locked-set (invalid-hand) ()
+  (:report
+   (lambda (condition stream)
+     (let ((hand (invalid-hand-hand condition)))
+       (format stream "The hand ~S contains closed locked non-kan sets in its ~
+                       list of locked sets ~S." hand
+                       (locked-sets hand))))))
+
 ;;; Hand
 
 (p:define-protocol-class hand ()
   ((%prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
    (%seat-wind :accessor seat-wind :initarg :seat-wind)
    (%winning-tile :accessor winning-tile :initarg :winning-tile)
-   ;; TODO: write tests for no antoi/anjun/ankou in locked sets.
    (%locked-sets :accessor locked-sets :initarg :locked-sets)
    (%free-tiles :accessor free-tiles :initarg :free-tiles)
    (%dora-list :accessor dora-list :initarg :dora-list)
@@ -225,6 +232,12 @@
           (error 'minjun-invalid-meld :hand hand :set set
                                       :taken-from taken-from))))))
 
+(defun check-no-closed-locked-sets (hand)
+  (dolist (set (locked-sets hand))
+    (when (typep set 'closed-set)
+      (unless (typep set 'ankan)
+        (error 'closed-locked-set :hand hand)))))
+
 (defmethod initialize-instance :before
     ((hand hand)
      &key prevailing-wind seat-wind winning-tile locked-sets
@@ -240,12 +253,11 @@
 
 (defmethod initialize-instance :after ((hand hand) &key)
   ;; TODO better message for this
-  (check-hand-elt-type-list hand (locked-sets hand)
-                            '(not (or antoi anjun ankou)))
   (check-hand-situations hand)
   (check-tile-count hand)
   (check-at-most-four-tiles-of-a-kind hand)
-  (check-locked-minjuns-taken-from-kamicha hand))
+  (check-locked-minjuns-taken-from-kamicha hand)
+  (check-no-closed-locked-sets hand))
 
 (p:define-protocol-class tsumo-hand (hand) ())
 (p:define-protocol-class ron-hand (hand)

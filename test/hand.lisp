@@ -57,15 +57,15 @@
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "1145678999p")
                         :locked-sets (list (rs:read-set-from-string "123p")))
-      'rh:invalid-hand-element)
+      'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "2345678999p")
                         :locked-sets (list (rs:read-set-from-string "111p")))
-      'rh:invalid-hand-element)
+      'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "11123456789p")
                         :locked-sets (list (rs:read-set-from-string "99p")))
-      'rh:invalid-hand-element)
+      'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles '(:keyword)) 'rh:invalid-hand-element)
   (fail (make-test-hand :dora-list :keyword) 'rh:invalid-hand-element)
