@@ -495,6 +495,10 @@
 ;;; Set reader - string to parsed tiles
 
 (defun parse-set-string (string)
+  ;; NOTE: This returns a list of parsed tile represetations. Each parsed tile
+  ;;       is a three-element list (RANK SUIT STATE), where RANK is an integer
+  ;;       from 1 to 9, SUIT is one of (:NUMBER :CIRCLE :BAMBOO :HONOR), and
+  ;;       STATE is one of (NIL :FLIP :SHOUMINKAN).
   (prog ((stack '())
          (result '())
          (i 0)
@@ -504,7 +508,7 @@
      (when (= i length) (go :end))
    :pop-char
      (setf char (char string i))
-     (cond ((char<= #\0 char #\9) (go :number-char))
+     (cond ((digit-char-p char) (go :number-char))
            ((alpha-char-p char) (go :alpha-char))
            ((char= #\* char) (go :flip-last-number))
            (t (go :error)))
@@ -644,7 +648,7 @@
         when (= 2 (count tile tiles :test #'tile=))
           return tile))
 
-(defmethod try-read-set :kokushi-musou (ordered)
+(defun try-read-kokushi (ordered)
   (when (= 14 (length ordered))
     (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
                          ordered)))
@@ -664,6 +668,38 @@
                                      (13 :shimocha))))
                   (open-kokushi-musou pair-tile open-tile taken-from)))
               (closed-kokushi-musou pair-tile)))))))
+
+(defmethod try-read-set :kokushi-musou (ordered)
+  (try-read-kokushi ordered))
+
+(defmethod try-read-set :shiisan-puutaa (ordered)
+  ;; NOTE: a hand like 19m19p19s1234567z1m might be read both as a kokushi musou
+  ;;       and a shiisan puutaa. The latter is an exclusive yaku - it does
+  ;;       not combine with anything else. Therefore, in the (unlikely) event
+  ;;       that a player receives such tiles as their haipai (initial draw), it
+  ;;       means that they need to score the largest hand possible to them, and
+  ;;       a tenhou kokushi hand is always worth more, as a double+ yakuman,
+  ;;       than a single yakuman that shiisanpuuta might be counted for.
+  ;;       (If the scoring rules in play do not allow combining any yakumans,
+  ;;       then we may pick whichever - meaning that we are allowed to pick
+  ;;       kokushi musou.)
+  ;;       Also, if such an arrangement of tiles does not occur during the
+  ;;       initial draw, then puutaa is impossible.
+  ;;       Therefore, it is effectively impossible to have a puutaa set with
+  ;;       such tiles, meaning that we can enforce a rule that a shiisan
+  ;;       puutaa must NOT be made of a set of tiles that also form a kokushi
+  ;;       musou.
+  (when (and (not (try-read-kokushi ordered))
+             (= 14 (length ordered))
+             (= 14 (count nil ordered :key #'third)))
+    (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
+                         ordered)))
+      (a:when-let ((pair-tile (tiles-pair-tile tiles)))
+        (let ((single-tiles (remove pair-tile tiles :test #'tile=)))
+          (when (null (verify-puutaa-tiles single-tiles))
+            (shiisan-puutaa pair-tile single-tiles)))))))
+
+;; TODO: (defmethod try-read-set :shiisuu-puutaa (ordered))
 
 ;;; Tile-set matcher
 
