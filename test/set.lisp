@@ -249,14 +249,15 @@
 ;;; Set list reader and print
 
 (defun test-read-print (strings &rest args)
-  (dolist (string strings)
-    (let* ((set (apply #'make-instance args)))
-      (let ((result-string (rs:print-set set nil)))
-        (is string= (first strings) result-string
-            "string=: ~A ~A" string result-string))
-      (let ((result-set (rs:read-set-from-string string)))
-        (is rs:set= set result-set
-            "set=: ~A ~A" set result-set)))))
+  (let ((expected-string (first strings)))
+    (dolist (string strings)
+      (let* ((set (apply #'make-instance args)))
+        (let ((result-string (rs:print-set set nil)))
+          (is string= expected-string result-string
+              "string=: ~A ~A" string result-string))
+        (let ((result-set (rs:read-set-from-string string)))
+          (is rs:set= set result-set
+              "set=: ~A ~A" set result-set))))))
 
 (define-test print-read-toitsu
   (test-read-print '("66p" "6p6p") 'rs:antoi
@@ -438,11 +439,64 @@
                    :lowest-tile (rt:make-tile "1p")
                    :open-tile (rt:make-tile "3p")))
 
-;; TODO (define-test print-read-kokushi-musou)
+(define-test print-read-kokushi-musou
+  (test-read-print '("119m19p19s1234567z" "191m19p19s1234567z"
+                     "19m1p1m9p19s1234567z" "19m19p19s1234567z1m"
+                     "1234567z19m19p19s1m")
+                   'rs:closed-kokushi-musou
+                   :pair-tile (rt:make-tile "1m"))
+  (test-read-print '("1*19m19p19s1234567z" "1*91m19p19s1234567z"
+                     "1*9m1p1m9p19s1234567z" "1*9m19p19s1234567z1m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :kamicha
+                   :open-tile (rt:make-tile "1m"))
+  (test-read-print '("11*9m19p19s1234567z" "91*1m19p19s1234567z"
+                     "91*m1p1m9p19s1234567z" "91*m19p19s1234567z1m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :toimen
+                   :open-tile (rt:make-tile "1m"))
+  (test-read-print '("19m19p19s1234567z1*m" "91m19p19s1234567z1*m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :shimocha
+                   :open-tile (rt:make-tile "1m"))
+  (test-read-print '("9*11m19p19s1234567z" "9*m11m19p19s1234567z"
+                     "9*1m1p1m9p19s1234567z" "9*1m19p19s1234567z1m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :kamicha
+                   :open-tile (rt:make-tile "9m"))
+  (test-read-print '("19*1m19p19s1234567z" "19*m1m19p19s1234567z"
+                     "19*m1p1m9p19s1234567z" "19*m19p19s1234567z1m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :toimen
+                   :open-tile (rt:make-tile "9m"))
+  (test-read-print '("11m19p19s1234567z9*m" "1m1m19p19s1234567z9*m"
+                     "1m1p1m9p19s1234567z9*m" "1m19p19s1234567z1m9*m")
+                   'rs:open-kokushi-musou
+                   :pair-tile (rt:make-tile "1m")
+                   :taken-from :shimocha
+                   :open-tile (rt:make-tile "9m")))
 
-;; TODO (define-test print-read-shiisan-puuta)
+(define-test print-read-shiisan-puutaa
+  (test-read-print
+   '("559m19p19s1234567z" "595m19p19s1234567z"
+     "59m1p5m9p19s1234567z" "59m19p19s1234567z5m"
+     "1234567z59m19p19s5m")
+   'rs:shiisan-puutaa
+   :single-tiles (rt:read-tile-list-from-string "9m19p19s1234567z")
+   :pair-tile (rt:make-tile "5m")))
 
-;; TODO (define-test print-read-shisuu-puuta)
+(define-test print-read-shiisuu-puutaa
+  (test-read-print
+   '("159m19p19s1234567z" "591m19p19s1234567z"
+     "59m1p1m9p19s1234567z" "59m19p19s1234567z1m"
+     "1234567z19m19p19s5m")
+   'rs:shiisuu-puutaa
+   :single-tiles (rt:read-tile-list-from-string "159m19p19s1234567z")))
 
 (define-test read-set-negative
   (flet ((test (string)
@@ -455,8 +509,8 @@
 
 (define-test set=
   ;; NOTE: Slow (20+ minutes on my machine), exhaustive correctness test
-  ;; for SET= testing all toitsu, koutsu, kantsu, and shuntsu.
-  ;; Uncomment and run when needed.
+  ;;       for SET= testing all toitsu, koutsu, kantsu, and shuntsu.
+  ;;       Uncomment and run when needed.
   #+(or)
   (let ((i 0))
     (do-all-valid-sets (set-1)
@@ -478,9 +532,6 @@
 ;; TODO test puutaa set=
 
 ;;; Tile-set matcher tests
-;;; NOTE: we do not test any kans, since they must always be declared and are
-;;; therefore only allowed in the locked sets list. Therefore, the matcher must
-;;; not detect any kans.
 
 (defun test-make-set (&key tiles winning-tile win-from forbidden-sets
                         expected-set expected-tiles expected-winning-tile)
@@ -806,14 +857,15 @@
     (test-make-set
      :tiles '([2p] [3p] [4p]) :winning-tile [6p] :win-from :tsumo
      :forbidden-sets '()
-     ;; NOTE: ankou, not minkou - we do not use the winning tile
+     ;; NOTE: anjun, not minjun - we do not use the winning tile
      :expected-set (rs:anjun [2p])
      :expected-tiles '()
      :expected-winning-tile [6p])))
 
 (define-test try-make-set-kantsu
-  ;; NOTE: Kantsu must not be detected in free tiles, since they are always
-  ;;       present in the locked sets.
+  ;; NOTE: we do not allow any kans, since they must always be declared and are
+  ;;       therefore only allowed in the locked sets list. Therefore, the
+  ;;       matcher must not detect any kans in free tiles.
   (test-make-set
    :tiles '([2p] [2p] [2p]) :winning-tile [2p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]) (rs:ankou [2p]))

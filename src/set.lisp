@@ -717,8 +717,8 @@
         (let ((single-tiles (remove pair-tile tiles :test #'tile= :count 1)))
           (when (null (verify-puutaa-tiles single-tiles))
             (shiisan-puutaa pair-tile
-                            (remove single-tiles tiles :test #'tile=
-                                                       :count 1))))))))
+                            (remove pair-tile single-tiles :test #'tile=
+                                                           :count 1))))))))
 
 (defmethod try-read-set :shiisuu-puutaa (ordered)
   (when (and (= 14 (length ordered))
