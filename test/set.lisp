@@ -485,7 +485,6 @@
    :expected-tiles '([2p])
    :expected-winning-tile nil)
   ;; Kokushi musou pair search
-  ;; TODO: fix this in the future, kokushi might come in the way
   (dolist (tile rs::*kokushi-musou-tiles*)
     (test-make-set
      :tiles rs::*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
