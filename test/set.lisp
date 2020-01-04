@@ -521,61 +521,146 @@
            "123456789m123456789p123456789s1234567z"
            "012p" "890p" "000p" "123z"))))
 
-(define-test set=
-  ;; NOTE: Slow (20+ minutes on my machine), exhaustive correctness test
-  ;;       for SET= testing all toitsu, koutsu, kantsu, and shuntsu.
-  ;;       Uncomment and run when needed.
-  #+(or)
-  (let ((i 0))
-    (do-all-valid-sets (set-1)
-      (do-all-valid-sets (set-2)
-        (incf i)
-        (when (= 0 (mod i 10000))
-          (princ ".")
-          (finish-output))
-        (if (and (eq (class-of set-1) (class-of set-2))
-                 (rt:tile-list= (rs:tiles set-1) (rs:tiles set-2))
-                 (if (typep set-1 'rs:minjun)
-                     (rt:tile= (rs:open-tile set-1) (rs:open-tile set-2))
-                     t))
-            (is rs:set= set-1 set-2)
-            (isnt rs:set= set-1 set-2))))
-    (fresh-line)))
+;;; Set equality tests
+
+(define-test toitsu-set=
+  (do-all-antoi (set-1)
+    (do-all-antoi (set-2)
+      (if (rt:tile= (rs:same-tile-set-tile set-1)
+                    (rs:same-tile-set-tile set-2))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-mintoi (set-1)
+    (do-all-mintoi (set-2)
+      (if (and (rt:tile= (rs:same-tile-set-tile set-1)
+                         (rs:same-tile-set-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-antoi (set-1)
+    (do-all-mintoi (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))))
+
+(define-test koutsu-set=
+  (do-all-ankou (set-1)
+    (do-all-ankou (set-2)
+      (if (rt:tile= (rs:same-tile-set-tile set-1)
+                    (rs:same-tile-set-tile set-2))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-minkou (set-1)
+    (do-all-minkou (set-2)
+      (if (and (rt:tile= (rs:same-tile-set-tile set-1)
+                         (rs:same-tile-set-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-ankou (set-1)
+    (do-all-minkou (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))))
+
+(define-test kantsu-set=
+  (do-all-ankan (set-1)
+    (do-all-ankan (set-2)
+      (if (rt:tile= (rs:same-tile-set-tile set-1)
+                    (rs:same-tile-set-tile set-2))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-daiminkan (set-1)
+    (do-all-daiminkan (set-2)
+      (if (and (rt:tile= (rs:same-tile-set-tile set-1)
+                         (rs:same-tile-set-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-shouminkan (set-1)
+    (do-all-shouminkan (set-2)
+      (if (and (rt:tile= (rs:same-tile-set-tile set-1)
+                         (rs:same-tile-set-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-ankan (set-1)
+    (do-all-daiminkan (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))
+    (do-all-shouminkan (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1)))
+  (do-all-daiminkan (set-1)
+    (do-all-shouminkan (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))))
+
+(define-test shuntsu-set=
+  (do-all-anjun (set-1)
+    (do-all-anjun (set-2)
+      (if (rt:tile= (rs:shuntsu-lowest-tile set-1)
+                    (rs:shuntsu-lowest-tile set-2))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-minjun (set-1)
+    (do-all-minjun (set-2)
+      (if (and (rt:tile= (rs:shuntsu-lowest-tile set-1)
+                         (rs:shuntsu-lowest-tile set-2))
+               (rt:tile= (rs:open-tile set-1) (rs:open-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-anjun (set-1)
+    (do-all-minjun (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))))
 
 (define-test kokushi-musou-set=
-  ;; NOTE: Slow (62+ minutes on my machine) correctness test for SET= testing
-  ;;       all kokushi musou sets against each other, and then against all
-  ;;       toitsu, koutsu, kantsu, and shuntsu.
-  ;;       Uncomment and run when needed.
-  #+(or)
-  (let ((i 0))
-    (flet ((count-me ()
-             (incf i)
-             (when (= 0 (mod i 10000))
-               (princ ".")
-               (finish-output))))
-      (do-all-kokushi-musou (set-1)
-        (do-all-kokushi-musou (set-2)
-          (count-me)
-          (cond ((and (typep set-1 'rs:closed-kokushi-musou)
-                      (typep set-2 'rs:closed-kokushi-musou)
-                      (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2)))
-                 (is rs:set= set-1 set-2))
-                ((and (typep set-1 'rs:open-kokushi-musou)
-                      (typep set-2 'rs:open-kokushi-musou)
-                      (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2))
-                      (rt:tile= (rs:open-tile set-1) (rs:open-tile set-2))
-                      (eq (rs:taken-from set-1) (rs:taken-from set-2)))
-                 (is rs:set= set-1 set-2))
-                (t
-                 (isnt rs:set= set-1 set-2))))
-        (do-all-valid-sets (set-2)
-          (count-me)
-          (isnt rs:set= set-1 set-2))))))
+  (do-all-closed-kokushi-musou (set-1)
+    (do-all-closed-kokushi-musou (set-2)
+      (if (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-open-kokushi-musou (set-1)
+    (do-all-open-kokushi-musou (set-2)
+      (if (and (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2))
+               (rt:tile= (rs:open-tile set-1) (rs:open-tile set-2))
+               (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2))))
+  (do-all-closed-kokushi-musou (set-1)
+    (do-all-open-kokushi-musou (set-2)
+      (isnt rs:set= set-1 set-2)
+      (isnt rs:set= set-2 set-1))))
 
 (define-test shiisan-puutaa-set=
-  ;; TODO
-  )
+  ;; NOTE: We do not do an exhaustive squared test due to the combinatorial
+  ;;       explosion associated with the number of possible shiisan sets. We
+  ;;       limit ourselves to testing all sets against a single known shiisan
+  ;;       puutaa set.
+  ;;       Even in spite of that, this test is SLOW and therefore commented
+  ;;       by default. Uncomment and run it as needed.
+  #+(or)
+  (let* ((single-tiles (rt:read-tile-list-from-string "5m19p19s1234567z"))
+         (set-1 (rs:shiisan-puutaa [1m] single-tiles)))
+    (do-all-shiisan-puutaa (set-2)
+      (if (and (rt:tile-list= (rs:single-tiles set-1) (rs:single-tiles set-2))
+               (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2)))))
+
+(define-test shiisuu-puutaa-set=
+  ;; NOTE: We do not do an exhaustive squared test due to the combinatorial
+  ;;       explosion associated with the number of possible shiisuu sets. We
+  ;;       limit ourselves to testing all sets against a single known shiisuu
+  ;;       puutaa set.
+  ;;       This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  (let* ((single-tiles (rt:read-tile-list-from-string "159m19p19s1234567z"))
+         (set-1 (rs:shiisan-puutaa single-tiles)))
+    (do-all-shiisuu-puutaa (set-2)
+      (if (and (rt:tile-list= (rs:single-tiles set-1) (rs:single-tiles set-2)))
+          (is rs:set= set-1 set-2)
+          (isnt rs:set= set-1 set-2)))))
 
 ;;; Tile-set matcher tests
 

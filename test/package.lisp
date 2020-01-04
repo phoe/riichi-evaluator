@@ -185,7 +185,7 @@
                    do-all-minjun
                    ;; NOTE: kokushi musou and puutaa are not listed here. The
                    ;; number of all possible sets listed above is 720, and that
-                   ;; number is squared during the exhaustive SET= test.
+                   ;; number is squared during an exhaustive SET= test.
                    ;; If we wanted to iterate over all sets we can compute, we
                    ;; would need to consider 507 more sets for possible kokushi
                    ;; musou, 81030 possible sets for shiisuu puutaa, and 3771950
@@ -308,12 +308,12 @@
                                               :test #'rt:tile=)))
                    ,@body)))))))))
 
-(defmacro do-all-shiisuu-puutaa-sets ((set) &body body)
+(defmacro do-all-shiisuu-puutaa ((set) &body body)
   `(do-all-shiisuu-puutaa-tiles (tile-list)
      (let ((,set (rs:shiisuu-puutaa (copy-list tile-list))))
        ,@body)))
 
-(defmacro do-all-shiisan-puutaa-sets ((set) &body body)
+(defmacro do-all-shiisan-puutaa ((set) &body body)
   (a:with-gensyms (pair-tile single-tiles)
     `(do-all-shiisan-puutaa-tiles (,pair-tile ,single-tiles)
        (let* ((,set (rs:shiisan-puutaa ,pair-tile ,single-tiles)))

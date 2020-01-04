@@ -47,7 +47,7 @@
    #:same-tile-set #:same-tile-set-tile
    #:closed-set #:open-set #:taken-from
    #:standard-set
-   #:toitsu #:koutsu #:kantsu #:shuntsu
+   #:toitsu #:koutsu #:kantsu #:shuntsu #:shuntsu-lowest-tile
    #:open-tile-set #:open-tile
    #:full-hand-set
    #:singles-set #:single-tiles
@@ -211,6 +211,10 @@
   (:default-initargs
    :taken-from (a:required-argument :taken-from)))
 
+(defmethod set= ((set-1 open-set) (set-2 open-set))
+  (and (eq (taken-from set-1) (taken-from set-2))
+       (call-next-method)))
+
 (defmethod initialize-instance :after ((set open-set) &key taken-from)
   (unless (member taken-from *other-players*)
     (error 'invalid-tile-taken-from
@@ -253,10 +257,6 @@
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
    :open-tile (a:required-argument :open-tile)))
-
-(defmethod set= ((set-1 open-tile-set) (set-2 open-tile-set))
-  (and (eq (taken-from set-1) (taken-from set-2))
-       (call-next-method)))
 
 (defmethod initialize-instance :before ((set open-tile-set) &key open-tile)
   (unless (tile-p open-tile)
@@ -353,31 +353,31 @@
 
 ;;; Concrete classes
 
-(defclass antoi (toitsu closed-set) ())
+(defclass antoi (closed-set toitsu) ())
 (defun antoi (tile)
   (make-instance 'antoi :tile tile))
 
-(defclass mintoi (toitsu open-set) ())
+(defclass mintoi (open-set toitsu) ())
 (defun mintoi (tile taken-from)
   (make-instance 'mintoi :tile tile :taken-from taken-from))
 
-(defclass ankou (koutsu closed-set) ())
+(defclass ankou (closed-set koutsu) ())
 (defun ankou (tile)
   (make-instance 'ankou :tile tile))
 
-(defclass minkou (koutsu open-set) ())
+(defclass minkou (open-set koutsu) ())
 (defun minkou (tile taken-from)
   (make-instance 'minkou :tile tile :taken-from taken-from))
 
-(defclass ankan (kantsu closed-set) ())
+(defclass ankan (closed-set kantsu) ())
 (defun ankan (tile)
   (make-instance 'ankan :tile tile))
 
-(defclass daiminkan (kantsu open-set) ())
+(defclass daiminkan (open-set kantsu) ())
 (defun daiminkan (tile taken-from)
   (make-instance 'daiminkan :tile tile :taken-from taken-from))
 
-(defclass shouminkan (kantsu open-set) ())
+(defclass shouminkan (open-set kantsu) ())
 (defun shouminkan (tile taken-from)
   (make-instance 'shouminkan :tile tile :taken-from taken-from))
 
@@ -419,7 +419,7 @@
   (and (tile= (open-tile set-1) (open-tile set-2))
        (call-next-method)))
 
-(defclass shiisan-puutaa (twelve-singles-and-pair-set closed-set puutaa)
+(defclass shiisan-puutaa (closed-set puutaa twelve-singles-and-pair-set)
   ((%single-tiles :reader single-tiles :initarg :single-tiles))
   (:default-initargs
    :single-tiles (a:required-argument :single-tiles)))
@@ -441,7 +441,7 @@
        (tile= (pair-tile set-1) (pair-tile set-2))
        (tile-list= (single-tiles set-1) (single-tiles set-2))))
 
-(defclass shiisuu-puutaa (fourteen-singles-set closed-set puutaa) ())
+(defclass shiisuu-puutaa (closed-set puutaa fourteen-singles-set) ())
 (defun shiisuu-puutaa (single-tiles)
   (make-instance 'shiisuu-puutaa :single-tiles single-tiles))
 
