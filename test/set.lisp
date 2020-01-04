@@ -223,28 +223,42 @@
             (return-from single-tiles-puuta-ok nil)))))))
 
 (define-test set-shiisan-puutaa
-  (dotimes (i 100000)
-    (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 13)))
-      (destructuring-bind (pair-tile . single-tiles) tiles
-        (if (single-tiles-puuta-ok tiles)
-            (let ((set (make-instance 'rs:shiisan-puutaa
-                                      :single-tiles single-tiles
-                                      :pair-tile pair-tile)))
-              (is rt:tile= pair-tile (rs:pair-tile set))
-              (is rt:tile-list= single-tiles (rs:single-tiles set)))
-            (fail (make-instance 'rs:shiisan-puutaa :single-tiles single-tiles
-                                                    :pair-tile pair-tile)
-                'rs:invalid-puutaa "~A ~A" pair-tile single-tiles))))))
+  ;; NOTE: the following randomized test scores runs until it scores at least
+  ;; one positive and one negative, or it runs out of iterations.
+  (let ((positive-p nil) (negative-p nil))
+    (dotimes (i 10000)
+      (when (and positive-p negative-p) (return))
+      (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 13)))
+        (destructuring-bind (pair-tile . single-tiles) tiles
+          (cond ((single-tiles-puuta-ok tiles)
+                 (let ((set (make-instance 'rs:shiisan-puutaa
+                                           :single-tiles single-tiles
+                                           :pair-tile pair-tile)))
+                   (is rt:tile= pair-tile (rs:pair-tile set))
+                   (is rt:tile-list= single-tiles (rs:single-tiles set)))
+                 (setf positive-p t))
+                (t
+                 (fail (make-instance 'rs:shiisan-puutaa :single-tiles single-tiles
+                                                         :pair-tile pair-tile)
+                     'rs:invalid-puutaa "~A ~A" pair-tile single-tiles)
+                 (setf negative-p t))))))))
 
 (define-test set-shiisuu-puutaa
-  (dotimes (i 100000)
-    (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 14)))
-      (if (single-tiles-puuta-ok tiles)
-          (let ((set (make-instance 'rs:shiisuu-puutaa
-                                    :single-tiles tiles)))
-            (is rt:tile-list= tiles (rs:single-tiles set)))
-          (fail (make-instance 'rs:shiisuu-puutaa :single-tiles tiles)
-              'rs:invalid-puutaa "~A" tiles)))))
+  ;; NOTE: the following randomized test scores runs until it scores at least
+  ;; one positive and one negative, or it runs out of iterations.
+  (let ((positive-p nil) (negative-p nil))
+    (dotimes (i 10000)
+      (when (and positive-p negative-p) (return))
+      (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 14)))
+        (cond ((single-tiles-puuta-ok tiles)
+               (let ((set (make-instance 'rs:shiisuu-puutaa
+                                         :single-tiles tiles)))
+                 (is rt:tile-list= tiles (rs:single-tiles set)))
+               (setf positive-p t))
+              (t
+               (fail (make-instance 'rs:shiisuu-puutaa :single-tiles tiles)
+                   'rs:invalid-puutaa "~A" tiles)
+               (setf negative-p t)))))))
 
 ;;; Set list reader and print
 
@@ -528,8 +542,40 @@
             (isnt rs:set= set-1 set-2))))
     (fresh-line)))
 
-;; TODO test kokushi set=
-;; TODO test puutaa set=
+(define-test kokushi-musou-set=
+  ;; NOTE: Slow (62+ minutes on my machine) correctness test for SET= testing
+  ;;       all kokushi musou sets against each other, and then against all
+  ;;       toitsu, koutsu, kantsu, and shuntsu.
+  ;;       Uncomment and run when needed.
+  #+(or)
+  (let ((i 0))
+    (flet ((count-me ()
+             (incf i)
+             (when (= 0 (mod i 10000))
+               (princ ".")
+               (finish-output))))
+      (do-all-kokushi-musou (set-1)
+        (do-all-kokushi-musou (set-2)
+          (count-me)
+          (cond ((and (typep set-1 'rs:closed-kokushi-musou)
+                      (typep set-2 'rs:closed-kokushi-musou)
+                      (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2)))
+                 (is rs:set= set-1 set-2))
+                ((and (typep set-1 'rs:open-kokushi-musou)
+                      (typep set-2 'rs:open-kokushi-musou)
+                      (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2))
+                      (rt:tile= (rs:open-tile set-1) (rs:open-tile set-2))
+                      (eq (rs:taken-from set-1) (rs:taken-from set-2)))
+                 (is rs:set= set-1 set-2))
+                (t
+                 (isnt rs:set= set-1 set-2))))
+        (do-all-valid-sets (set-2)
+          (count-me)
+          (isnt rs:set= set-1 set-2))))))
+
+(define-test shiisan-puutaa-set=
+  ;; TODO
+  )
 
 ;;; Tile-set matcher tests
 

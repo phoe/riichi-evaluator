@@ -96,9 +96,9 @@
    :offending-tile (a:required-argument :offending-tile))
   (:report
    (lambda (condition stream)
-     (format stream "Attempted to make a shuntsu with ~A tile ~A."
-             (if (suited-p tile) "lowest" "honor")
-             (offending-tile condition)))))
+     (let ((tile (offending-tile condition)))
+       (format stream "Attempted to make a shuntsu with ~A tile ~A."
+               (if (suited-p tile) "lowest" "honor") tile)))))
 
 (define-condition set-reader-error (riichi-evaluator-error)
   ((%offending-string :initarg :offending-string :accessor offending-string))
@@ -162,8 +162,10 @@
   (:report
    (lambda (condition stream)
      (format stream "Attempted to make a full hand set with tile list ~A, ~
-                     which contains fewer than ~D tiles expected for that set."
+                     which contains ~A than ~D tiles expected for that set."
              (tiles condition)
+             (if (< (expected-tile-count condition) (length (tiles condition)))
+                 "more" "fewer")
              (expected-tile-count condition)))))
 
 ;;; Protocol
@@ -251,6 +253,10 @@
   ((%open-tile :reader open-tile :initarg :open-tile))
   (:default-initargs
    :open-tile (a:required-argument :open-tile)))
+
+(defmethod set= ((set-1 open-tile-set) (set-2 open-tile-set))
+  (and (eq (taken-from set-1) (taken-from set-2))
+       (call-next-method)))
 
 (defmethod initialize-instance :before ((set open-tile-set) &key open-tile)
   (unless (tile-p open-tile)
@@ -375,11 +381,11 @@
 (defun shouminkan (tile taken-from)
   (make-instance 'shouminkan :tile tile :taken-from taken-from))
 
-(defclass anjun (shuntsu closed-set) ())
+(defclass anjun (closed-set shuntsu) ())
 (defun anjun (lowest-tile)
   (make-instance 'anjun :lowest-tile lowest-tile))
 
-(defclass minjun (shuntsu open-tile-set)
+(defclass minjun (open-tile-set shuntsu)
   ((%open-tile :reader open-tile :initarg :open-tile)))
 (defun minjun (lowest-tile open-tile taken-from)
   (make-instance 'minjun :lowest-tile lowest-tile
@@ -395,11 +401,11 @@
   (and (tile= (open-tile set-1) (open-tile set-2))
        (call-next-method)))
 
-(defclass closed-kokushi-musou (kokushi-musou closed-set) ())
+(defclass closed-kokushi-musou (closed-set kokushi-musou) ())
 (defun closed-kokushi-musou (pair-tile)
   (make-instance 'closed-kokushi-musou :pair-tile pair-tile))
 
-(defclass open-kokushi-musou (kokushi-musou open-tile-set) ())
+(defclass open-kokushi-musou (open-tile-set kokushi-musou) ())
 (defun open-kokushi-musou (pair-tile open-tile taken-from)
   (make-instance 'open-kokushi-musou :pair-tile pair-tile :open-tile open-tile
                                      :taken-from taken-from))
