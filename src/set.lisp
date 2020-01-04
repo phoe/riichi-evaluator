@@ -810,22 +810,25 @@
 
 (macrolet
     ((make ((class kind) &body body)
-       `(defmethod try-make-set-from-tiles chained-or ,class ,kind
+       `(defmethod try-make-set-from-tiles ,class ,kind
           (tiles winning-tile win-from forbidden-sets)
           ,@body))
-     (make-set-maker-free-tiles-only (class count make-fn)
+     (make-free-set (class count make-fn)
+       ;; Try to make a set with free tiles only.
        `(make (,class :free-tiles-only)
               (try-make-set tiles winning-tile nil
                             forbidden-sets ',class ,count
                             ,make-fn)))
-     (make-set-maker-winning-tile-tsumo (class count make-fn)
+     (make-tsumo-set (class count make-fn)
+       ;; Try to make a set with a self-drawn winning tile.
        `(make (,class :winning-tile-tsumo)
               (if (and winning-tile (eq win-from :tsumo))
                   (try-make-set tiles winning-tile t
                                 forbidden-sets ',class ,count
                                 ,make-fn)
                   (values nil tiles winning-tile))))
-     (make-set-maker-winning-tile-ron (class count make-fn &rest args)
+     (make-ron-set (class count make-fn &rest args)
+       ;; Try to make a set with a melded winning tile.
        `(make (,class :winning-tile-ron)
               (if (and winning-tile (not (eq win-from :tsumo)))
                   (try-make-set tiles winning-tile t
@@ -833,24 +836,20 @@
                                 ,make-fn
                                 ,@args)
                   (values nil tiles winning-tile)))))
-  (make-set-maker-free-tiles-only antoi 2 #'try-make-same-tile-set)
-  (make-set-maker-free-tiles-only ankou 3 #'try-make-same-tile-set)
-  (make-set-maker-free-tiles-only anjun 3 #'try-make-shuntsu)
-  (make-set-maker-winning-tile-tsumo antoi 2 #'try-make-same-tile-set)
-  (make-set-maker-winning-tile-tsumo ankou 3 #'try-make-same-tile-set)
-  (make-set-maker-winning-tile-tsumo anjun 3 #'try-make-shuntsu)
-  (make-set-maker-winning-tile-tsumo closed-kokushi-musou 14
-                                     #'try-make-kokushi-musou)
-  (make-set-maker-winning-tile-tsumo shiisan-puuta 14
-                                     #'try-make-shiisan-puutaa)
-  (make-set-maker-winning-tile-tsumo shiisuu-puuta 14
-                                     #'try-make-shiisuu-puutaa)
-  (make-set-maker-winning-tile-ron mintoi 2 #'try-make-same-tile-set
-                                   win-from)
-  (make-set-maker-winning-tile-ron minkou 3 #'try-make-same-tile-set
-                                   win-from)
-  (make-set-maker-winning-tile-ron minjun 3 #'try-make-shuntsu
-                                   winning-tile win-from)
-  (make-set-maker-winning-tile-ron open-kokushi-musou 14
-                                   #'try-make-kokushi-musou
-                                   winning-tile win-from))
+  ;; Free tiles only
+  (make-free-set antoi 2 #'try-make-same-tile-set)
+  (make-free-set ankou 3 #'try-make-same-tile-set)
+  (make-free-set anjun 3 #'try-make-shuntsu)
+  ;; Include wining tile, tsumo
+  (make-tsumo-set antoi 2 #'try-make-same-tile-set)
+  (make-tsumo-set ankou 3 #'try-make-same-tile-set)
+  (make-tsumo-set anjun 3 #'try-make-shuntsu)
+  (make-tsumo-set closed-kokushi-musou 14 #'try-make-kokushi-musou)
+  (make-tsumo-set shiisan-puuta 14 #'try-make-shiisan-puutaa)
+  (make-tsumo-set shiisuu-puuta 14 #'try-make-shiisuu-puutaa)
+  ;; Include winning tile, ron
+  (make-ron-set mintoi 2 #'try-make-same-tile-set win-from)
+  (make-ron-set minkou 3 #'try-make-same-tile-set win-from)
+  (make-ron-set minjun 3 #'try-make-shuntsu winning-tile win-from)
+  (make-ron-set open-kokushi-musou 14 #'try-make-kokushi-musou
+                winning-tile win-from))
