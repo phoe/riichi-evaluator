@@ -25,11 +25,28 @@
 ;; TODO move into yaku definitions
 ;; TODO invalid-situation tests
 
+(define-condition invalid-dora-list-lengths (invalid-hand) ()
+  ((%dora-list :reader dora-list :initarg :dora-list)
+   (%ura-dora-list :reader ura-dora-list :initarg :ura-dora-list))
+  (:default-initargs
+   :dora-list (a:required-argument :dora-list)
+   :ura-dora-list (a:required-argument :ura-dora-list))
+  (:report
+   (lambda (condition stream)
+     (format stream "The dora list ~S and ura dora list ~S for hand ~S ~
+                       are not of the same length."
+             (dora-list condition)
+             (ura-dora-list condition)
+             (invalid-hand-hand condition)))))
+
 ;; (defun check-dora-ura-dora-list-length (hand)
 ;;   (let ((dora-list-length (length (dora-list hand)))
 ;;         (ura-dora-list-length (length (ura-dora-list hand))))
 ;;     (unless (= dora-list-length ura-dora-list-length)
-;;       (error 'invalid-dora-list-lengths :hand hand))))
+;;       (error 'invalid-dora-list-lengths
+;;              :hand hand
+;;              :dora-list (dora-list hand)
+;;              :ura-dora-list (ura-dora-list hand)))))
 
 (defmethod validate-situation progn
     (hand situation &rest args)

@@ -34,7 +34,7 @@
    #:invalid-hand #:invalid-hand-element
    #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
-   #:invalid-dora-list-lengths #:closed-locked-set
+   #:closed-locked-set
    ;; Protocol
    #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
@@ -135,25 +135,16 @@
              (minjun-invalid-meld-set condition)
              (minjun-invalid-meld-taken-from condition)))))
 
-(define-condition invalid-dora-list-lengths (invalid-hand) ()
+(define-condition closed-locked-set (invalid-hand)
+  ((%locked-sets :reader locked-sets :initarg :locked-sets))
+  (:default-initargs
+   :locked-sets (a:required-argument :locked-sets))
   (:report
    (lambda (condition stream)
-     (let ((hand (invalid-hand-hand condition)))
-       (format stream "The dora list ~S and ura dora list ~S for hand ~S ~
-                       are not of the same length."
-               (dora-list hand) ;; TODO make this a condition slot instead
-               (ura-dora-list hand) ;; TODO make this a condition slot instead
-               hand)))))
-
-(define-condition closed-locked-set (invalid-hand) ()
-  (:report
-   (lambda (condition stream)
-     (let ((hand (invalid-hand-hand condition)))
-       (format stream "The hand ~S contains closed locked non-kan sets in its ~
+     (format stream "The hand ~S contains closed locked non-kan sets in its ~
                        list of locked sets ~S."
-               hand
-               (locked-sets hand) ;; TODO make this a condition slot instead
-               )))))
+             (invalid-hand-hand condition)
+             (locked-sets condition)))))
 
 ;;; Hand
 
@@ -237,10 +228,11 @@
                                       :taken-from taken-from))))))
 
 (defun check-no-closed-locked-sets (hand)
-  (dolist (set (locked-sets hand))
-    (when (typep set 'closed-set)
-      (unless (typep set 'ankan)
-        (error 'closed-locked-set :hand hand)))))
+  (let ((locked-sets (locked-sets hand)))
+    (dolist (set locked-sets)
+      (when (typep set 'closed-set)
+        (unless (typep set 'ankan)
+          (error 'closed-locked-set :hand hand :locked-sets locked-sets))))))
 
 (defmethod initialize-instance :before
     ((hand hand)
