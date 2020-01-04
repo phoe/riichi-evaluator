@@ -372,11 +372,7 @@
   (make-instance 'anjun :lowest-tile lowest-tile))
 
 (defclass minjun (shuntsu open-tile-set)
-  ((%open-tile :reader open-tile :initarg :open-tile))
-  (:default-initargs
-   ;; NOTE: this is a convenience default value. It is possible to create
-   ;; minjuns taken from other players as well.
-   :taken-from :kamicha))
+  ((%open-tile :reader open-tile :initarg :open-tile)))
 (defun minjun (lowest-tile open-tile taken-from)
   (make-instance 'minjun :lowest-tile lowest-tile
                          :open-tile open-tile :taken-from taken-from))
