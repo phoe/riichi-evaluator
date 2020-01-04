@@ -173,14 +173,78 @@
                                           :taken-from :kamicha)
               'rs:open-tile-not-in-set)))))
 
-;; TODO (define-test set-kokushi-musou-positive)
-;; TODO (define-test set-kokushi-musou-negative)
+(define-test set-kokushi-musou-positive
+  (do-all-tiles (pair-tile)
+    (unless (rt:simple-p pair-tile)
+      (let ((set (make-instance 'rs:closed-kokushi-musou :pair-tile pair-tile)))
+        (is rt:tile-list= (cons pair-tile rs:*kokushi-musou-tiles*)
+            (rs:tiles set)))
+      (do-all-tiles (open-tile)
+        (unless (rt:simple-p open-tile)
+          (do-all-other-players (player)
+            (let ((set (make-instance 'rs:open-kokushi-musou
+                                      :pair-tile pair-tile
+                                      :open-tile open-tile
+                                      :taken-from player)))
+              (is rt:tile-list= (cons pair-tile rs:*kokushi-musou-tiles*)
+                  (rs:tiles set))
+              (is rt:tile= open-tile (rs:open-tile set))
+              (is eq player (rs:taken-from set)))))))))
 
-;; TODO (define-test set-shiisan-puutaa-positive)
-;; TODO (define-test set-shiisan-puutaa-negative)
+(define-test set-kokushi-musou-negative
+  (do-all-tiles (pair-tile)
+    (when (rt:simple-p pair-tile)
+      (fail (make-instance 'rs:closed-kokushi-musou :pair-tile pair-tile)
+          'rs:invalid-kokushi-musou))
+    (unless (rt:simple-p pair-tile)
+      (fail (make-instance 'rs:open-kokushi-musou
+                           :pair-tile pair-tile
+                           :open-tile pair-tile
+                           :taken-from :keyword)
+          'rs:invalid-tile-taken-from)
+      (do-all-other-players (player)
+        (do-all-tiles (open-tile)
+          (when (rt:simple-p open-tile)
+            (fail (make-instance 'rs:open-kokushi-musou
+                                 :pair-tile pair-tile
+                                 :open-tile open-tile
+                                 :taken-from player)
+                'rs:invalid-kokushi-musou)))))))
 
-;; TODO (define-test set-shiisuu-puutaa-positive)
-;; TODO (define-test set-shiisuu-puutaa-negative)
+(defun single-tiles-puuta-ok (tiles)
+  (dolist (suit *allowed-suits* t)
+    (let ((tiles-in-suit (remove-if-not (a:curry #'eq suit)
+                                        tiles
+                                        :key #'rt:suit)))
+      (dolist (tile-1 tiles-in-suit)
+        (dolist (tile-2 (remove tile-1 tiles-in-suit
+                                :test #'rt:tile=))
+          (when (< (abs (- (rt:rank tile-1) (rt:rank tile-2))) 3)
+            (return-from single-tiles-puuta-ok nil)))))))
+
+(define-test set-shiisan-puutaa
+  (dotimes (i 100000)
+    (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 13)))
+      (destructuring-bind (pair-tile . single-tiles) tiles
+        (if (single-tiles-puuta-ok tiles)
+            (let ((set (make-instance 'rs:shiisan-puutaa
+                                      :single-tiles single-tiles
+                                      :pair-tile pair-tile)))
+              (is rt:tile= pair-tile (rs:pair-tile set))
+              (is rt:tile-list= single-tiles (rs:single-tiles set)))
+            (fail (make-instance 'rs:shiisan-puutaa :single-tiles single-tiles
+                                                    :pair-tile pair-tile)
+                'rs:invalid-puutaa "~A ~A" pair-tile single-tiles))))))
+
+(define-test set-shiisuu-puutaa
+  (dotimes (i 100000)
+    (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 14)))
+      (if (single-tiles-puuta-ok tiles)
+          (let ((set (make-instance 'rs:shiisuu-puutaa
+                                    :single-tiles tiles)))
+            (is rt:tile-list= tiles (rs:single-tiles set)))
+          (fail (make-instance 'rs:shiisuu-puutaa :single-tiles tiles)
+              'rs:invalid-puutaa "~A" tiles)))))
 
 ;;; Set list reader and print
 

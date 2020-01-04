@@ -328,6 +328,11 @@
 
 (p:define-protocol-class puutaa (singles-set) ())
 
+(defun tiles-pair-tile (tiles)
+  (loop for tile in tiles
+        when (< 1 (count tile tiles :test #'tile=))
+          return tile))
+
 (defun verify-puutaa-tiles (tiles)
   (a:when-let ((pair-tile (tiles-pair-tile tiles)))
     (return-from verify-puutaa-tiles (list pair-tile pair-tile)))
@@ -652,11 +657,6 @@
                                      (2 :shimocha))))
                   (minjun lowest-tile open-tile taken-from)))
               (anjun lowest-tile)))))))
-
-(defun tiles-pair-tile (tiles)
-  (loop for tile in tiles
-        when (= 2 (count tile tiles :test #'tile=))
-          return tile))
 
 (defun good-kokushi-musou-p (tiles)
   (and (= 14 (length tiles))
