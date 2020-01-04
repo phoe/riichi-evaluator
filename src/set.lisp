@@ -326,6 +326,8 @@
 (p:define-protocol-class puutaa (singles-set) ())
 
 (defun verify-puutaa-tiles (tiles)
+  (a:when-let ((pair-tile (tiles-pair-tile tiles)))
+    (return-from verify-puutaa-tiles (list pair-tile pair-tile)))
   (dolist (tile-1 tiles)
     (unless (honor-p tile-1)
       (dolist (tile-2 (remove tile-1 tiles :count 1 :test #'tile=))
@@ -424,6 +426,11 @@
   (sort (list* (pair-tile set) (pair-tile set) (copy-list (single-tiles set)))
         #'tile<))
 
+(defmethod set= ((set-1 shiisan-puutaa) (set-2 shiisan-puutaa))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile= (pair-tile set-1) (pair-tile set-2))
+       (tile-list= (single-tiles set-1) (single-tiles set-2))))
+
 (defclass shiisuu-puutaa (fourteen-singles-set closed-set puutaa) ())
 (defun shiisuu-puutaa (single-tiles)
   (make-instance 'shiisuu-puutaa :single-tiles single-tiles))
@@ -434,6 +441,10 @@
 
 (defmethod tiles ((set shiisuu-puutaa))
   (single-tiles set))
+
+(defmethod set= ((set-1 shiisuu-puutaa) (set-2 shiisuu-puutaa))
+  (and (eq (class-of set-1) (class-of set-2))
+       (tile-list= (single-tiles set-1) (single-tiles set-2))))
 
 ;;; Set printer
 
@@ -648,11 +659,20 @@
         when (= 2 (count tile tiles :test #'tile=))
           return tile))
 
+(defun good-kokushi-musou-p (tiles)
+  (and (= 14 (length tiles))
+       (let ((new-tiles (copy-list tiles)))
+         (dolist (tile *kokushi-musou-tiles*)
+           (a:deletef new-tiles tile :test #'tile= :count 1))
+         (if (and (= 1 (length new-tiles))
+                  (member (first new-tiles) *kokushi-musou-tiles* :test #'tile=))
+             t nil))))
+
 (defun try-read-kokushi (ordered)
   (when (= 14 (length ordered))
     (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
                          ordered)))
-      (when (null (set-difference tiles *kokushi-musou-tiles* :test #'tile=))
+      (when (good-kokushi-musou-p tiles)
         (let ((pair-tile (tiles-pair-tile tiles)))
           (if (member :flip ordered :key #'third)
               (when (and (= 1 (count :flip ordered :key #'third))
@@ -695,11 +715,20 @@
     (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
                          ordered)))
       (a:when-let ((pair-tile (tiles-pair-tile tiles)))
-        (let ((single-tiles (remove pair-tile tiles :test #'tile=)))
+        (let ((single-tiles (remove pair-tile tiles :test #'tile= :count 1)))
           (when (null (verify-puutaa-tiles single-tiles))
-            (shiisan-puutaa pair-tile single-tiles)))))))
+            (shiisan-puutaa pair-tile
+                            (remove single-tiles tiles :test #'tile=
+                                                       :count 1))))))))
 
-;; TODO: (defmethod try-read-set :shiisuu-puutaa (ordered))
+(defmethod try-read-set :shiisuu-puutaa (ordered)
+  (when (and (= 14 (length ordered))
+             (= 14 (count nil ordered :key #'third)))
+    (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
+                         ordered)))
+      (when (and (= 14 (length (remove-duplicates tiles :test #'tile=)))
+                 (null (verify-puutaa-tiles tiles)))
+        (shiisuu-puutaa tiles)))))
 
 ;;; Tile-set matcher
 
@@ -733,26 +762,51 @@
       (unless (member set forbidden-sets :test #'set=)
         (list set (remove tile tiles :count tile-count :test #'tile=))))))
 
+(defun try-make-kokushi-musou (tiles tile forbidden-sets class tile-count args)
+  (declare (ignore tile-count))
+  (when (good-kokushi-musou-p tiles)
+    (let ((pair-tile (tiles-pair-tile tiles)))
+      (when (tile= tile pair-tile)
+        (let ((set (apply class pair-tile args)))
+          (unless (member set forbidden-sets :test #'set=)
+            (list set '())))))))
+
+(defun try-make-shiisan-puutaa (tiles tile forbidden-sets class tile-count args)
+  (declare (ignore tile tile-count args))
+  ;; NOTE: we prohibit kokushi in shiisan puutaa computation.
+  ;;       See DEFMETHOD TRY-READ-SET :SHIISAN-PUUTAA for full comment.
+  (when (and (= 14 (length tiles))
+             (not (good-kokushi-musou-p tiles)))
+    (a:when-let* ((pair-tile (tiles-pair-tile tiles))
+                  (rest (remove pair-tile tiles :count 1 :test #'tile=)))
+      (when (null (verify-puutaa-tiles rest))
+        (let ((set (funcall class pair-tile
+                            (remove pair-tile rest :count 1 :test #'tile=))))
+          (unless (member set forbidden-sets :test #'set=)
+            (list set '())))))))
+
+(defun try-make-shiisuu-puutaa (tiles tile forbidden-sets class tile-count args)
+  (declare (ignore tile tile-count args))
+  (when (and (= 14 (length tiles))
+             (null (verify-puutaa-tiles tiles)))
+    (let ((set (funcall class tiles)))
+      (unless (member set forbidden-sets :test #'set=)
+        (list set '())))))
+
 (defun try-make-set
     (tiles winning-tile consume-winning-tile-p forbidden-sets class tile-count
      make-fn &rest args)
   (multiple-value-or
     (values-list
-     (cond
-       ((not consume-winning-tile-p)
-        (dolist (tile tiles)
-          (a:when-let ((result (funcall make-fn tiles tile forbidden-sets
-                                        class tile-count args)))
-            (return (append result (list winning-tile))))))
-       (winning-tile
-        (a:when-let ((result (funcall make-fn
-                                      (cons winning-tile tiles) winning-tile
-                                      forbidden-sets class tile-count args)))
-          (append result (list nil))))
-       (t
-        (a:when-let ((result (funcall make-fn tiles winning-tile
-                                      forbidden-sets class tile-count args)))
-          (append result (list nil))))))
+     (if consume-winning-tile-p
+         (a:when-let ((result (funcall make-fn
+                                       (cons winning-tile tiles) winning-tile
+                                       forbidden-sets class tile-count args)))
+           (append result (list nil)))
+         (dolist (tile tiles)
+           (a:when-let ((result (funcall make-fn tiles tile
+                                         forbidden-sets class tile-count args)))
+             (return (append result (list winning-tile)))))))
     (values nil tiles winning-tile)))
 
 (defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
@@ -789,13 +843,18 @@
   (make-set-maker-winning-tile-tsumo antoi 2 #'try-make-same-tile-set)
   (make-set-maker-winning-tile-tsumo ankou 3 #'try-make-same-tile-set)
   (make-set-maker-winning-tile-tsumo anjun 3 #'try-make-shuntsu)
+  (make-set-maker-winning-tile-tsumo closed-kokushi-musou 14
+                                     #'try-make-kokushi-musou)
+  (make-set-maker-winning-tile-tsumo shiisan-puuta 14
+                                     #'try-make-shiisan-puutaa)
+  (make-set-maker-winning-tile-tsumo shiisuu-puuta 14
+                                     #'try-make-shiisuu-puutaa)
   (make-set-maker-winning-tile-ron mintoi 2 #'try-make-same-tile-set
                                    win-from)
   (make-set-maker-winning-tile-ron minkou 3 #'try-make-same-tile-set
                                    win-from)
   (make-set-maker-winning-tile-ron minjun 3 #'try-make-shuntsu
+                                   winning-tile win-from)
+  (make-set-maker-winning-tile-ron open-kokushi-musou 14
+                                   #'try-make-kokushi-musou
                                    winning-tile win-from))
-
-;;; TODO kokushi musou
-;;; TODO shiisan puutaa
-;;; TODO shiisuu puutaa

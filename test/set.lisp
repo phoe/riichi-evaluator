@@ -488,10 +488,10 @@
   ;; TODO: fix this in the future, kokushi might come in the way
   (dolist (tile rs::*kokushi-musou-tiles*)
     (test-make-set
-     :tiles tiles :winning-tile tile :win-from :tsumo
+     :tiles rs::*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
      :forbidden-sets (list (rs:closed-kokushi-musou tile))
      :expected-set (rs:antoi tile)
-     :expected-tiles (remove tile tiles :test #'rt:tile=)
+     :expected-tiles (remove tile rs::*kokushi-musou-tiles* :test #'rt:tile=)
      :expected-winning-tile nil)))
 
 (define-test try-make-set-mintoi
@@ -526,15 +526,13 @@
      :expected-tiles '([2p])
      :expected-winning-tile nil)
     ;; Kokushi musou pair search
-    (let ((tiles '([1m] [9m] [1p] [9p] [1s] [9s]
-                   [EW] [SW] [WW] [NW] [WD] [GD] [RD])))
-      (dolist (tile tiles)
-        (test-make-set
-         :tiles tiles :winning-tile tile :win-from player
-         :forbidden-sets '()
-         :expected-set (rs:mintoi tile player)
-         :expected-tiles (remove tile tiles :test #'rt:tile=)
-         :expected-winning-tile nil)))))
+    (dolist (tile rs:*kokushi-musou-tiles*)
+      (test-make-set
+       :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from player
+       :forbidden-sets (list (rs:open-kokushi-musou tile tile player))
+       :expected-set (rs:mintoi tile player)
+       :expected-tiles (remove tile rs:*kokushi-musou-tiles* :test #'rt:tile=)
+       :expected-winning-tile nil))))
 
 (define-test try-make-set-ankou
   ;; 22p + 3p → ∅
@@ -773,3 +771,8 @@
      :expected-set nil
      :expected-tiles '([2p] [2p] [2p])
      :expected-winning-tile [2p])))
+
+;; TODO (define-test try-make-set-closed-kokushi-musou)
+;; TODO (define-test try-make-set-open-kokushi-musou)
+;; TODO (define-test try-make-set-shiisan-puutaa)
+;; TODO (define-test try-make-set-shiisuu-puutaa)
