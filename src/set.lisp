@@ -96,16 +96,16 @@
    :offending-tile (a:required-argument :offending-tile))
   (:report
    (lambda (condition stream)
-     (let* ((tile (offending-tile condition))
-            (error-type (if (suited-p tile) "lowest" "honor")))
-       (format stream "Attempted to make a shuntsu with ~A tile ~A."
-               error-type tile)))))
+     (format stream "Attempted to make a shuntsu with ~A tile ~A."
+             (if (suited-p tile) "lowest" "honor")
+             (offending-tile condition)))))
 
 (define-condition set-reader-error (riichi-evaluator-error)
   ((%offending-string :initarg :offending-string :accessor offending-string))
-  (:report (lambda (condition stream)
-             (format stream "Attempted to read an invalid set: ~S"
-                     (offending-string condition)))))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to read an invalid set: ~S"
+             (offending-string condition)))))
 
 (define-condition invalid-kokushi-musou (riichi-evaluator-error)
   ((%offending-tile :reader offending-tile :initarg :offending-tile))
@@ -113,9 +113,8 @@
    :offending-tile (a:required-argument :offending-tile))
   (:report
    (lambda (condition stream)
-     (let* ((tile (offending-tile condition)))
-       (format stream "Attempted to make a kokushi musou with tile ~A."
-               tile)))))
+     (format stream "Attempted to make a kokushi musou with tile ~A."
+             (offending-tile condition)))))
 
 (define-condition singles-set-contains-duplicates (riichi-evaluator-error)
   ((%tiles :reader tiles :initarg :tiles))
@@ -138,7 +137,8 @@
    (lambda (condition stream)
      (format stream "Attempted to make a twelve-singles-and-pair set with tile ~
                      list ~S, which contains the pair tile ~S."
-             (single-tiles condition) (pair-tile condition)))))
+             (single-tiles condition)
+             (pair-tile condition)))))
 
 (define-condition invalid-puutaa (riichi-evaluator-error)
   ((%offending-tiles :reader offending-tiles :initarg :offending-tiles))
@@ -147,8 +147,10 @@
   (:report
    (lambda (condition stream)
      (destructuring-bind (tile-1 tile-2) (offending-tiles condition)
-       (format stream "Attempted to make a puutaa with neighboring tiles ~A and ~
-                      ~A." tile-1 tile-2)))))
+       (format stream "Attempted to make a puutaa with neighboring tiles ~A ~
+                      and ~A."
+               tile-1
+               tile-2)))))
 
 (define-condition full-hand-set-invalid-tile-count (riichi-evaluator-error)
   ((%tiles :reader tiles :initarg :tiles)
@@ -161,7 +163,8 @@
    (lambda (condition stream)
      (format stream "Attempted to make a full hand set with tile list ~A, ~
                      which contains fewer than ~D tiles expected for that set."
-             (tiles condition) (expected-tile-count condition)))))
+             (tiles condition)
+             (expected-tile-count condition)))))
 
 ;;; Protocol
 

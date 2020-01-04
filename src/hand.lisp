@@ -102,10 +102,11 @@
   (:default-initargs
    :expected (a:required-argument :expected)
    :actual (a:required-argument :actual))
-  (:report (lambda (condition stream)
-             (format stream "The hand has ~D tiles, but ~D were expected."
-                     (invalid-tile-count-actual condition)
-                     (invalid-tile-count-expected condition)))))
+  (:report
+   (lambda (condition stream)
+     (format stream "The hand has ~D tiles, but ~D were expected."
+             (invalid-tile-count-actual condition)
+             (invalid-tile-count-expected condition)))))
 
 (define-condition invalid-same-tile-count (invalid-hand)
   ((%tile :reader invalid-same-tile-count-tile :initarg :tile)
@@ -113,11 +114,12 @@
   (:default-initargs
    :tile (a:required-argument :tile)
    :count (a:required-argument :count))
-  (:report (lambda (condition stream)
-             (format stream
-                     "There are ~D ~A tiles visible, but at most 4 are allowed."
-                     (invalid-same-tile-count-count condition)
-                     (invalid-same-tile-count-tile condition)))))
+  (:report
+   (lambda (condition stream)
+     (format stream
+             "There are ~D ~A tiles visible, but at most 4 are allowed."
+             (invalid-same-tile-count-count condition)
+             (invalid-same-tile-count-tile condition)))))
 
 (define-condition minjun-invalid-meld (invalid-hand)
   ((%taken-from :reader minjun-invalid-meld-taken-from :initarg :taken-from)
@@ -139,15 +141,19 @@
      (let ((hand (invalid-hand-hand condition)))
        (format stream "The dora list ~S and ura dora list ~S for hand ~S ~
                        are not of the same length."
-               (dora-list hand) (ura-dora-list hand) hand)))))
+               (dora-list hand) ;; TODO make this a condition slot instead
+               (ura-dora-list hand) ;; TODO make this a condition slot instead
+               hand)))))
 
 (define-condition closed-locked-set (invalid-hand) ()
   (:report
    (lambda (condition stream)
      (let ((hand (invalid-hand-hand condition)))
        (format stream "The hand ~S contains closed locked non-kan sets in its ~
-                       list of locked sets ~S." hand
-                       (locked-sets hand))))))
+                       list of locked sets ~S."
+               hand
+               (locked-sets hand) ;; TODO make this a condition slot instead
+               )))))
 
 ;;; Hand
 
