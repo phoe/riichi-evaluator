@@ -324,6 +324,12 @@
                        :key (lambda (x) (cons (first x)
                                               (second x)))))))
 
+;;; TODO: this function should be able to return both shiisan puutaa and kokushi
+;;; musou for a hand like 119m19p19s1234567z. We need to rework the algorithm to
+;;; keep on trying once it exhausts all the tiles, this time, inclusing all the
+;;; sets in the forbidden set list. Before we do that, we also need to relax the
+;;; definition of shiisan puutaa, which currently checks if a valid kokushi
+;;; musou is formable from its tiles.
 (defun %find-orderings (tiles winning-tile win-from forbidden-sets
                         &optional winning-set (other-sets '()))
   (if (and (null tiles) (null winning-tile))
