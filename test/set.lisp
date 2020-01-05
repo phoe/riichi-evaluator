@@ -615,6 +615,9 @@
       (isnt rs:set= set-2 set-1))))
 
 (define-test kokushi-musou-set=
+  ;; NOTE: This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  #+(or) #+(or) #+(or)
   (do-all-closed-kokushi-musou (set-1)
     (do-all-closed-kokushi-musou (set-2)
       (if (rt:tile= (rs:pair-tile set-1) (rs:pair-tile set-2))
@@ -655,8 +658,9 @@
   ;;       puutaa set.
   ;;       This test is slow and therefore commented by default. Uncomment and
   ;;       run as needed.
+  #+(or)
   (let* ((single-tiles (rt:read-tile-list-from-string "159m19p19s1234567z"))
-         (set-1 (rs:shiisan-puutaa single-tiles)))
+         (set-1 (rs:shiisuu-puutaa single-tiles)))
     (do-all-shiisuu-puutaa (set-2)
       (if (and (rt:tile-list= (rs:single-tiles set-1) (rs:single-tiles set-2)))
           (is rs:set= set-1 set-2)
