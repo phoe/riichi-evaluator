@@ -24,9 +24,6 @@
 
 (nr:in-readtable :riichi-evaluator)
 
-;;; TODO: a test suite that checks all the error messages available from the
-;;;       external API.
-
 (defun make-test-hand (&rest args
                        &key
                          (class 'rh:closed-tsumo-hand)
@@ -82,14 +79,6 @@
   (fail (make-test-hand :situations '((42))) 'rh:invalid-hand-element)
   (fail (make-test-hand :class 'rh:closed-ron-hand :losing-player :keyword)
       'rh:invalid-hand-element)
-  ;; TODO: we allow the ura dora list to be empty since at this point
-  ;; we do not know if riichi was declared.
-  ;; Introduce the typechecks for that in situations.lisp.
-  ;; (fail (make-test-hand :ura-dora-list '()) 'rh:invalid-dora-list-length)
-  ;; (fail (make-test-hand :dora-list '([4p]) :ura-dora-list '([5p] [6p]))
-  ;;     'rh:invalid-dora-list-lengths)
-  ;; (fail (make-test-hand :dora-list '([4p] [5p]) :ura-dora-list '([6p]))
-  ;;     'rh:invalid-dora-list-lengths)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "11112345678999p"))
       'rh:invalid-tile-count)
@@ -106,15 +95,11 @@
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
          :locked-sets (rs:read-set-from-string "456*p"))
-      'rh:minjun-invalid-meld))
-
-;; (make-instance 'closed-tsumo-hand
-;;                :prevailing-wind :east :seat-wind :east
-;;                :winning-tile [1p]
-;;                :locked-sets '()
-;;                :free-tiles (read-tile-list-from-string "1112345678999p")
-;;                :dora-list '([3p])
-;;                :situations '())
+      'rh:minjun-invalid-meld)
+  (fail (make-test-hand
+         :free-tiles (rt:read-tile-list-from-string "1112378999p")
+         :locked-sets (rs:read-set-from-string "456p"))
+      'rh:closed-locked-set))
 
 (define-test hand-positive
   (dolist (args '((:class rh:closed-tsumo-hand)
@@ -151,7 +136,13 @@
          (is eq :toimen (rh:losing-player hand)))))))
 
 ;;; Ordering finder
+
 ;;; TODO write these, based on a couple of hands that we recognize
+
+(defun test-find-orderings (hand expected-orderings))
+
+(define-test find-orderings-standard
+  )
 
 ;; (let ((tiles '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
 ;;                [6p] [7p] [8p] [9p] [9p] [9p])))

@@ -74,28 +74,6 @@
   (error 'invalid-dora-list-length :hand hand :dora-list dora-list
                                    :ura-dora-p ura-dora-p))
 
-(define-condition invalid-situation (invalid-hand simple-condition)
-  ((%situation :reader invalid-situation-situation :initarg :situation))
-  (:default-initargs
-   :situation (a:required-argument :situation)
-   :format-control "No reason given.")
-  (:report
-   (lambda (condition stream)
-     (let ((situation (invalid-situation-situation condition)))
-       (format stream "Invalid situation ~S for hand ~S:~%~A"
-               (if (and (consp situation) (null (cdr situation)))
-                   (car situation)
-                   situation)
-               (invalid-hand-hand condition)
-               (apply #'format nil
-                      (simple-condition-format-control condition)
-                      (simple-condition-format-arguments condition)))))))
-
-(defun invalid-situation (hand situation args format-control &rest format-args)
-  (error 'invalid-situation :hand hand :situation (cons situation args)
-                            :format-control format-control
-                            :format-args format-args))
-
 (define-condition invalid-tile-count (invalid-hand)
   ((%expected :reader invalid-tile-count-expected :initarg :expected)
    (%actual :reader invalid-tile-count-actual :initarg :actual))
@@ -337,17 +315,18 @@
       (multiple-value-bind (new-set new-tiles new-winning-tile)
           (try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
         (when new-set
-          (nconc
-           (let* ((winning-tile-consumed-p (and (not (null winning-tile))
-                                                (null new-winning-tile)))
-                  (new-winning-set (if winning-tile-consumed-p
-                                       new-set
-                                       winning-set))
-                  (new-other-sets (if winning-tile-consumed-p
-                                      other-sets
-                                      (cons new-set other-sets))))
-             (%find-orderings new-tiles new-winning-tile win-from forbidden-sets
-                              new-winning-set new-other-sets))
-           (let ((new-forbidden-sets (cons new-set forbidden-sets)))
-             (%find-orderings tiles winning-tile win-from new-forbidden-sets
-                              winning-set other-sets)))))))
+          (let* ((winning-tile-consumed-p (and (not (null winning-tile))
+                                               (null new-winning-tile)))
+                 (orderings-with-new-set
+                   (%find-orderings new-tiles new-winning-tile win-from
+                                    forbidden-sets
+                                    (if winning-tile-consumed-p
+                                        new-set winning-set)
+                                    (if winning-tile-consumed-p
+                                        other-sets (cons new-set other-sets))))
+                 (orderings-without-new-set
+                   (%find-orderings tiles winning-tile win-from
+                                    (cons new-set forbidden-sets)
+                                    winning-set other-sets)))
+            (nconc orderings-with-new-set
+                   orderings-without-new-set))))))

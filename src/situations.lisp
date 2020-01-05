@@ -25,6 +25,28 @@
 ;; TODO move into yaku definitions
 ;; TODO invalid-situation tests
 
+(define-condition invalid-situation (invalid-hand simple-condition)
+  ((%situation :reader invalid-situation-situation :initarg :situation))
+  (:default-initargs
+   :situation (a:required-argument :situation)
+   :format-control "No reason given.")
+  (:report
+   (lambda (condition stream)
+     (let ((situation (invalid-situation-situation condition)))
+       (format stream "Invalid situation ~S for hand ~S:~%~A"
+               (if (and (consp situation) (null (cdr situation)))
+                   (car situation)
+                   situation)
+               (invalid-hand-hand condition)
+               (apply #'format nil
+                      (simple-condition-format-control condition)
+                      (simple-condition-format-arguments condition)))))))
+
+(defun invalid-situation (hand situation args format-control &rest format-args)
+  (error 'invalid-situation :hand hand :situation (cons situation args)
+                            :format-control format-control
+                            :format-args format-args))
+
 (define-condition invalid-dora-list-lengths (invalid-hand) ()
   ((%dora-list :reader dora-list :initarg :dora-list)
    (%ura-dora-list :reader ura-dora-list :initarg :ura-dora-list))
