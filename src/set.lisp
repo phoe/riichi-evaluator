@@ -720,7 +720,6 @@
 ;;; Tile-set matcher - set makers
 
 (defun try-make-shuntsu (tiles tile forbidden-sets class args)
-  ;; TODO remove tile-count everywhere
   (let (set)
     (flet ((try-find-set (t1 t2 t3)
              (and t1 t2 t3
@@ -779,13 +778,11 @@
 
 ;;; Tile-set matcher - nonwinning sets
 
-;;; TODO: we only need to return two values here, not three.
 (defun try-make-nonwinning-set (tiles forbidden-sets class make-fn &rest args)
   (multiple-value-or
-    (dolist (tile tiles)
-      (a:when-let ((result (funcall make-fn tiles tile
-                                    forbidden-sets class args)))
-        (return (values-list result))))
+    (loop for tile in tiles
+          for result = (funcall make-fn tiles tile forbidden-sets class args)
+          when result return (values-list result))
     (values nil tiles)))
 
 (defgeneric try-make-nonwinning-set-from-tiles (tiles forbidden-sets)
