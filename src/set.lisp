@@ -581,7 +581,7 @@
       (make-instance 'suited-tile :suit suit :rank rank)))
 
 (defgeneric try-read-set (ordered)
-  (:method-combination chained-or))
+  (:method-combination chained-append))
 
 (defmethod try-read-set :toitsu (ordered)
   (when (= 2 (length ordered))
@@ -592,10 +592,10 @@
                  (eq suit-1 suit-2))
         (let ((tile (try-read-make-tile rank-1 suit-1)))
           (a:switch ((list state-1 state-2) :test #'equal)
-            ('(nil nil) (antoi tile))
-            ('(:flip nil) (mintoi tile :kamicha))
-            ('(:flip :flip) (mintoi tile :toimen))
-            ('(nil :flip) (mintoi tile :shimocha))))))))
+            ('(nil nil) (list (antoi tile)))
+            ('(:flip nil) (list (mintoi tile :kamicha)))
+            ('(:flip :flip) (list (mintoi tile :toimen)))
+            ('(nil :flip) (list (mintoi tile :shimocha)))))))))
 
 (defmethod try-read-set :koutsu (ordered)
   (when (= 3 (length ordered))
@@ -607,10 +607,10 @@
                  (eq suit-1 suit-2) (eq suit-1 suit-3))
         (let ((tile (try-read-make-tile rank-1 suit-1)))
           (a:switch ((list state-1 state-2 state-3) :test #'equal)
-            ('(nil nil nil) (ankou tile))
-            ('(:flip nil nil) (minkou tile :kamicha))
-            ('(nil :flip nil) (minkou tile :toimen))
-            ('(nil nil :flip) (minkou tile :shimocha))))))))
+            ('(nil nil nil) (list (ankou tile)))
+            ('(:flip nil nil) (list (minkou tile :kamicha)))
+            ('(nil :flip nil) (list (minkou tile :toimen)))
+            ('(nil nil :flip) (list (minkou tile :shimocha)))))))))
 
 (defmethod try-read-set :kantsu (ordered)
   (when (= 4 (length ordered))
@@ -623,13 +623,14 @@
                  (eq suit-1 suit-2) (eq suit-1 suit-3) (eq suit-1 suit-4))
         (let ((tile (try-read-make-tile rank-1 suit-1)))
           (a:switch ((list state-1 state-2 state-3 state-4) :test #'equal)
-            ('(nil nil nil nil) (ankan tile))
-            ('(:flip nil nil nil) (daiminkan tile :kamicha))
-            ('(nil :flip nil nil) (daiminkan tile :toimen))
-            ('(nil nil nil :flip) (daiminkan tile :shimocha))
-            ('(:flip :shouminkan nil nil) (shouminkan tile :kamicha))
-            ('(nil :flip :shouminkan nil) (shouminkan tile :toimen))
-            ('(nil nil :flip :shouminkan) (shouminkan tile :shimocha))))))))
+            ('(nil nil nil nil) (list (ankan tile)))
+            ('(:flip nil nil nil) (list (daiminkan tile :kamicha)))
+            ('(nil :flip nil nil) (list (daiminkan tile :toimen)))
+            ('(nil nil nil :flip) (list (daiminkan tile :shimocha)))
+            ('(:flip :shouminkan nil nil) (list (shouminkan tile :kamicha)))
+            ('(nil :flip :shouminkan nil) (list (shouminkan tile :toimen)))
+            ('(nil nil :flip :shouminkan)
+              (list (shouminkan tile :shimocha)))))))))
 
 (defun shuntsu-ranks-p (rank-1 rank-2 rank-3)
   (and (<= 1 rank-1 9) (<= 1 rank-2 9) (<= 1 rank-3 9)
@@ -661,8 +662,8 @@
                                      (0 :kamicha)
                                      (1 :toimen)
                                      (2 :shimocha))))
-                  (minjun lowest-tile open-tile taken-from)))
-              (anjun lowest-tile)))))))
+                  (list (minjun lowest-tile open-tile taken-from))))
+              (list (anjun lowest-tile))))))))
 
 (defun good-kokushi-musou-p (tiles)
   (and (= 14 (length tiles))
@@ -673,7 +674,7 @@
                   (member (first new-tiles) *kokushi-musou-tiles* :test #'tile=))
              t nil))))
 
-(defun try-read-kokushi (ordered)
+(defmethod try-read-set :kokushi-musou (ordered)
   (when (= 14 (length ordered))
     (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
                          ordered)))
@@ -691,11 +692,8 @@
                                      (0 :kamicha)
                                      (1 :toimen)
                                      (13 :shimocha))))
-                  (open-kokushi-musou pair-tile open-tile taken-from)))
-              (closed-kokushi-musou pair-tile)))))))
-
-(defmethod try-read-set :kokushi-musou (ordered)
-  (try-read-kokushi ordered))
+                  (list (open-kokushi-musou pair-tile open-tile taken-from))))
+              (list (closed-kokushi-musou pair-tile))))))))
 
 (defmethod try-read-set :shiisan-puutaa (ordered)
   (when (and (= 14 (length ordered))
@@ -705,9 +703,10 @@
       (a:when-let ((pair-tile (tiles-pair-tile tiles)))
         (let ((single-tiles (remove pair-tile tiles :test #'tile= :count 1)))
           (when (null (verify-puutaa-tiles single-tiles))
-            (shiisan-puutaa pair-tile
-                            (remove pair-tile single-tiles :test #'tile=
-                                                           :count 1))))))))
+            (list (shiisan-puutaa
+                   pair-tile
+                   (remove pair-tile single-tiles :test #'tile=
+                                                  :count 1)))))))))
 
 (defmethod try-read-set :shiisuu-puutaa (ordered)
   (when (and (= 14 (length ordered))
@@ -716,7 +715,7 @@
                          ordered)))
       (when (and (= 14 (length (remove-duplicates tiles :test #'tile=)))
                  (null (verify-puutaa-tiles tiles)))
-        (shiisuu-puutaa tiles)))))
+        (list (shiisuu-puutaa tiles))))))
 
 ;;; Tile-set matcher
 

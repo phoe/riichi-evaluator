@@ -269,9 +269,9 @@
         (let ((result-string (rs:print-set set nil)))
           (is string= expected-string result-string
               "string=: ~A ~A" string result-string))
-        (let ((result-set (rs:read-set-from-string string)))
-          (is rs:set= set result-set
-              "set=: ~A ~A" set result-set))))))
+        (let ((result-sets (rs:read-set-from-string string)))
+          (true (member set result-sets :test #'rs:set=)
+                "set=: ~A ~A" set result-sets))))))
 
 (define-test print-read-toitsu
   (test-read-print '("66p" "6p6p") 'rs:antoi
@@ -524,6 +524,9 @@
 ;;; Set equality tests
 
 (define-test toitsu-set=
+  ;; NOTE: This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  #+(or) #+(or) #+(or)
   (do-all-antoi (set-1)
     (do-all-antoi (set-2)
       (if (rt:tile= (rs:same-tile-set-tile set-1)
@@ -543,6 +546,9 @@
       (isnt rs:set= set-2 set-1))))
 
 (define-test koutsu-set=
+  ;; NOTE: This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  #+(or) #+(or) #+(or)
   (do-all-ankou (set-1)
     (do-all-ankou (set-2)
       (if (rt:tile= (rs:same-tile-set-tile set-1)
@@ -562,6 +568,9 @@
       (isnt rs:set= set-2 set-1))))
 
 (define-test kantsu-set=
+  ;; NOTE: This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  #+(or) #+(or) #+(or) #+(or) #+(or)
   (do-all-ankan (set-1)
     (do-all-ankan (set-2)
       (if (rt:tile= (rs:same-tile-set-tile set-1)
@@ -595,6 +604,9 @@
       (isnt rs:set= set-2 set-1))))
 
 (define-test shuntsu-set=
+  ;; NOTE: This test is slow and therefore commented by default. Uncomment and
+  ;;       run as needed.
+  #+(or) #+(or) #+(or)
   (do-all-anjun (set-1)
     (do-all-anjun (set-2)
       (if (rt:tile= (rs:shuntsu-lowest-tile set-1)
@@ -735,12 +747,16 @@
    :expected-tiles '([2p])
    :expected-winning-tile nil)
   ;; Kokushi musou pair search
-  (dolist (tile rs::*kokushi-musou-tiles*)
+  (dolist (tile rs:*kokushi-musou-tiles*)
     (test-make-set
-     :tiles rs::*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
-     :forbidden-sets (list (rs:closed-kokushi-musou tile))
+     :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
+     :forbidden-sets
+     (list (rs:closed-kokushi-musou tile)
+           (rs:shiisan-puutaa
+            tile
+            (remove tile rs:*kokushi-musou-tiles* :test #'rt:tile=)))
      :expected-set (rs:antoi tile)
-     :expected-tiles (remove tile rs::*kokushi-musou-tiles* :test #'rt:tile=)
+     :expected-tiles (remove tile rs:*kokushi-musou-tiles* :test #'rt:tile=)
      :expected-winning-tile nil)))
 
 (define-test try-make-set-mintoi

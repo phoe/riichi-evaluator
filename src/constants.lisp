@@ -33,7 +33,7 @@
    ;; Utils
    #:multiple-value-or #:bag-difference
    ;; Method combinations
-   #:chained-or))
+   #:chained-or #:chained-append))
 
 (in-package #:riichi-evaluator.constants)
 
@@ -97,3 +97,8 @@
   ((methods *))
   (let ((calls (mapcar #'(lambda (x) `(call-method ,x)) methods)))
     `(multiple-value-or ,@calls)))
+
+(define-method-combination chained-append ()
+  ((methods *))
+  (let ((calls (mapcar #'(lambda (x) `(call-method ,x)) methods)))
+    `(append ,@calls)))

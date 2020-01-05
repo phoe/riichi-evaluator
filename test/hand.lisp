@@ -56,15 +56,15 @@
   (fail (make-test-hand :locked-sets '(:keyword)) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "1145678999p")
-                        :locked-sets (list (rs:read-set-from-string "123p")))
+                        :locked-sets (rs:read-set-from-string "123p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "2345678999p")
-                        :locked-sets (list (rs:read-set-from-string "111p")))
+                        :locked-sets (rs:read-set-from-string "111p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "11123456789p")
-                        :locked-sets (list (rs:read-set-from-string "99p")))
+                        :locked-sets (rs:read-set-from-string "99p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles '(:keyword)) 'rh:invalid-hand-element)
@@ -95,7 +95,7 @@
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112345678999p")
-         :locked-sets (list (rs:read-set-from-string "4*56p")))
+         :locked-sets (rs:read-set-from-string "4*56p"))
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "112345678999p"))
@@ -105,7 +105,7 @@
       'rh:invalid-same-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
-         :locked-sets (list (rs:read-set-from-string "456*p")))
+         :locked-sets (rs:read-set-from-string "456*p"))
       'rh:minjun-invalid-meld))
 
 ;; (make-instance 'closed-tsumo-hand
