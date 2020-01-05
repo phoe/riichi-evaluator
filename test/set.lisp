@@ -640,8 +640,8 @@
   ;;       explosion associated with the number of possible shiisan sets. We
   ;;       limit ourselves to testing all sets against a single known shiisan
   ;;       puutaa set.
-  ;;       Even in spite of that, this test is SLOW and therefore commented
-  ;;       by default. Uncomment and run it as needed.
+  ;;       Even in spite of that, this test is **UNBEARABLY** SLOW and therefore
+  ;;       commented by default. Uncomment and run it as needed.
   #+(or)
   (let* ((single-tiles (rt:read-tile-list-from-string "5m19p19s1234567z"))
          (set-1 (rs:shiisan-puutaa [1m] single-tiles)))
@@ -656,7 +656,7 @@
   ;;       explosion associated with the number of possible shiisuu sets. We
   ;;       limit ourselves to testing all sets against a single known shiisuu
   ;;       puutaa set.
-  ;;       This test is slow and therefore commented by default. Uncomment and
+  ;;       This test is SLOW and therefore commented by default. Uncomment and
   ;;       run as needed.
   #+(or)
   (let* ((single-tiles (rt:read-tile-list-from-string "159m19p19s1234567z"))

@@ -698,24 +698,7 @@
   (try-read-kokushi ordered))
 
 (defmethod try-read-set :shiisan-puutaa (ordered)
-  ;; NOTE: a hand like 19m19p19s1234567z1m might be read both as a kokushi musou
-  ;;       and a shiisan puutaa. The latter is an exclusive yaku - it does
-  ;;       not combine with anything else. Therefore, in the (unlikely) event
-  ;;       that a player receives such tiles as their haipai (initial draw), it
-  ;;       means that they need to score the largest hand possible to them, and
-  ;;       a tenhou kokushi hand is always worth more, as a double+ yakuman,
-  ;;       than a single yakuman that shiisanpuuta might be counted for.
-  ;;       (If the scoring rules in play do not allow combining any yakumans,
-  ;;       then we may pick whichever - meaning that we are allowed to pick
-  ;;       kokushi musou.)
-  ;;       Also, if such an arrangement of tiles does not occur during the
-  ;;       initial draw, then puutaa is impossible.
-  ;;       Therefore, it is effectively impossible to have a puutaa set with
-  ;;       such tiles, meaning that we can enforce a rule that a shiisan
-  ;;       puutaa must NOT be made of a set of tiles that also form a kokushi
-  ;;       musou.
-  (when (and (not (try-read-kokushi ordered))
-             (= 14 (length ordered))
+  (when (and (= 14 (length ordered))
              (= 14 (count nil ordered :key #'third)))
     (let ((tiles (mapcar (lambda (x) (try-read-make-tile (first x) (second x)))
                          ordered)))
@@ -778,10 +761,7 @@
 
 (defun try-make-shiisan-puutaa (tiles tile forbidden-sets class tile-count args)
   (declare (ignore tile tile-count args))
-  ;; NOTE: we prohibit kokushi in shiisan puutaa computation.
-  ;;       See DEFMETHOD TRY-READ-SET :SHIISAN-PUUTAA for full comment.
-  (when (and (= 14 (length tiles))
-             (not (good-kokushi-musou-p tiles)))
+  (when (= 14 (length tiles))
     (a:when-let* ((pair-tile (tiles-pair-tile tiles))
                   (rest (remove pair-tile tiles :count 1 :test #'tile=)))
       (when (null (verify-puutaa-tiles rest))
@@ -854,8 +834,8 @@
   (make-tsumo-set ankou 3 #'try-make-same-tile-set)
   (make-tsumo-set anjun 3 #'try-make-shuntsu)
   (make-tsumo-set closed-kokushi-musou 14 #'try-make-kokushi-musou)
-  (make-tsumo-set shiisan-puuta 14 #'try-make-shiisan-puutaa)
-  (make-tsumo-set shiisuu-puuta 14 #'try-make-shiisuu-puutaa)
+  (make-tsumo-set shiisan-puutaa 14 #'try-make-shiisan-puutaa)
+  (make-tsumo-set shiisuu-puutaa 14 #'try-make-shiisuu-puutaa)
   ;; Include winning tile, ron
   (make-ron-set mintoi 2 #'try-make-same-tile-set win-from)
   (make-ron-set minkou 3 #'try-make-same-tile-set win-from)
