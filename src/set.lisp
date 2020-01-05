@@ -802,10 +802,10 @@
 (defun try-make-winning-set
     (tiles winning-tile forbidden-sets class make-fn &rest args)
   (multiple-value-or
-    (a:when-let ((result (funcall make-fn
-                                  (cons winning-tile tiles) winning-tile
-                                  forbidden-sets class args)))
-      (values-list (append result (list nil))))
+    (let ((new-tiles (cons winning-tile tiles)))
+      (a:when-let ((result (funcall make-fn new-tiles winning-tile
+                                    forbidden-sets class args)))
+        (values-list (append result (list nil)))))
     (values nil tiles winning-tile)))
 
 (defgeneric try-make-winning-set-from-tiles
