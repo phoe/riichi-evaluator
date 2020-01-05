@@ -139,10 +139,37 @@
 
 ;;; TODO write these, based on a couple of hands that we recognize
 
-(defun test-find-orderings (hand expected-orderings))
+(defun ordering= (ordering-1 ordering-2)
+  (destructuring-bind (winning-set-1 other-sets-1) ordering-1
+    (destructuring-bind (winning-set-2 other-sets-2) ordering-2
+      (and (rs:set= winning-set-1 winning-set-2)
+           (= (length other-sets-1) (length other-sets-2))
+           (loop with result = (copy-list other-sets-2)
+                 for set in other-sets-1
+                 do (a:deletef result set :test #'rs:set=)
+                 finally (return (null result)))))))
+
+(defun test-find-orderings (hand &rest expected-orderings)
+  (let ((actual-orderings (rh:find-orderings hand)))
+    (dolist (ordering expected-orderings)
+      (true (some (a:curry #'ordering= ordering) actual-orderings)))))
 
 (define-test find-orderings-standard
-  )
+  (test-find-orderings
+   (make-test-hand :winning-tile [1p])
+   (list (rs:anjun [1p])
+         (list (rs:ankou [1p]) (rs:anjun [4p])
+               (rs:anjun [7p]) (rs:antoi [9p]))))
+  (test-find-orderings
+   (make-test-hand :winning-tile [1p])
+   (list (rs:ankou [1p])
+         (list (rs:anjun [1p]) (rs:anjun [4p])
+               (rs:anjun [7p]) (rs:antoi [9p]))))
+  (test-find-orderings
+   (make-test-hand :winning-tile [2p])
+   (list (rs:antoi [2p])
+         (list (rs:ankou [1p]) (rs:anjun [3p])
+               (rs:anjun [6p]) (rs:ankou [9p]))))  )
 
 ;; (let ((tiles '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
 ;;                [6p] [7p] [8p] [9p] [9p] [9p])))

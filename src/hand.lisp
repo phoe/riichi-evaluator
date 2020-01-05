@@ -289,14 +289,21 @@
 
 ;;; Ordering finder
 
+;;; TODO: in 1112345678999p won with 1p, the winning set can be a 123p anjun and
+;;;       a 111p ankou. Only one of these situations is currently detected. We
+;;;       need to fix the forbidden sets mechanism, so the forbidden sets do not
+;;;       get in the way during the computation. Possibly split the forbidden
+;;;       sets into forbidden from being the winning set and forbidden in
+;;;       general.
+
 (defun find-orderings (hand &optional include-non-mahjong-orderings-p)
-  (let* ((tiles (free-tiles hand))
-         (winning-tile (winning-tile hand))
-         (win-from (etypecase hand
-                     (closed-hand :tsumo)
-                     (open-hand (taken-from hand))))
-         (possible-orderings '()))
-    (loop with forbidden-sets = '()
+  (let* ((possible-orderings '()))
+    (loop with tiles = (free-tiles hand)
+          with winning-tile = (winning-tile hand)
+          with win-from = (etypecase hand
+                            (closed-hand :tsumo)
+                            (open-hand (taken-from hand)))
+          with forbidden-sets = '()
           for new-orderings
             = (%find-orderings tiles winning-tile win-from forbidden-sets)
           while new-orderings
@@ -330,3 +337,6 @@
                                     winning-set other-sets)))
             (nconc orderings-with-new-set
                    orderings-without-new-set))))))
+
+(defun find-winning-sets (winning-tile free-tiles)
+  )

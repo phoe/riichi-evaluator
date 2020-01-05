@@ -72,6 +72,14 @@
 
 (define-condition riichi-evaluator-error (error) ())
 
+(defun bag-difference (bag-1 bag-2 &key (test 'eql))
+  (loop with result = (copy-list bag-1)
+        for element in bag-2
+        if (member element result :test test)
+          do (setf result (delete element result
+                                  :test test :count 1))
+        finally (return result)))
+
 (defmacro multiple-value-or (&body forms)
   (when forms
     (destructuring-bind (first . rest) forms
@@ -84,14 +92,6 @@
                      (values-list ,values)
                      (multiple-value-or ,@rest))
                 `(values-list ,values)))))))
-
-(defun bag-difference (bag-1 bag-2 &key (test 'eql))
-  (loop with result = (copy-list bag-1)
-        for element in bag-2
-        if (member element result :test test)
-          do (setf result (delete element result
-                                  :test test :count 1))
-        finally (return result)))
 
 (define-method-combination chained-or ()
   ((methods *))
