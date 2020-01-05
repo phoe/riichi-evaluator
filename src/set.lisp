@@ -65,7 +65,7 @@
    ;; Set reader and printer
    #:print-set #:read-set #:read-set-from-string
    ;; Tile-set matcher
-   #:try-make-set-from-tiles
+   #:try-make-winning-set-from-tiles #:try-make-nonwinning-set-from-tiles
    ))
 
 (in-package #:riichi-evaluator.set)
@@ -717,10 +717,10 @@
                  (null (verify-puutaa-tiles tiles)))
         (list (shiisuu-puutaa tiles))))))
 
-;;; Tile-set matcher
+;;; Tile-set matcher - set makers
 
-(defun try-make-shuntsu (tiles tile forbidden-sets class tile-count args)
-  (declare (ignore tile-count))
+(defun try-make-shuntsu (tiles tile forbidden-sets class args)
+  ;; TODO remove tile-count everywhere
   (let (set)
     (flet ((try-find-set (t1 t2 t3)
              (and t1 t2 t3
@@ -743,14 +743,14 @@
                (list set (bag-difference tiles (list tile 1+ 2+)
                                          :test #'tile=))))))))
 
-(defun try-make-same-tile-set (tiles tile forbidden-sets class tile-count args)
-  (when (<= tile-count (count tile tiles :test #'tile=))
-    (let ((set (apply class tile args)))
-      (unless (member set forbidden-sets :test #'set=)
-        (list set (remove tile tiles :count tile-count :test #'tile=))))))
+(defun try-make-same-tile-set (tiles tile forbidden-sets class args)
+  (let ((tile-count (set-tile-count (m:class-prototype (find-class class)))))
+    (when (<= tile-count (count tile tiles :test #'tile=))
+      (let ((set (apply class tile args)))
+        (unless (member set forbidden-sets :test #'set=)
+          (list set (remove tile tiles :count tile-count :test #'tile=)))))))
 
-(defun try-make-kokushi-musou (tiles tile forbidden-sets class tile-count args)
-  (declare (ignore tile-count))
+(defun try-make-kokushi-musou (tiles tile forbidden-sets class args)
   (when (good-kokushi-musou-p tiles)
     (let ((pair-tile (tiles-pair-tile tiles)))
       (when (tile= tile pair-tile)
@@ -758,8 +758,8 @@
           (unless (member set forbidden-sets :test #'set=)
             (list set '())))))))
 
-(defun try-make-shiisan-puutaa (tiles tile forbidden-sets class tile-count args)
-  (declare (ignore tile tile-count args))
+(defun try-make-shiisan-puutaa (tiles tile forbidden-sets class args)
+  (declare (ignore tile args))
   (when (= 14 (length tiles))
     (a:when-let* ((pair-tile (tiles-pair-tile tiles))
                   (rest (remove pair-tile tiles :count 1 :test #'tile=)))
@@ -769,75 +769,78 @@
           (unless (member set forbidden-sets :test #'set=)
             (list set '())))))))
 
-(defun try-make-shiisuu-puutaa (tiles tile forbidden-sets class tile-count args)
-  (declare (ignore tile tile-count args))
+(defun try-make-shiisuu-puutaa (tiles tile forbidden-sets class args)
+  (declare (ignore tile args))
   (when (and (= 14 (length tiles))
              (null (verify-puutaa-tiles tiles)))
     (let ((set (funcall class tiles)))
       (unless (member set forbidden-sets :test #'set=)
         (list set '())))))
 
-(defun try-make-set
-    (tiles winning-tile consume-winning-tile-p forbidden-sets class tile-count
-     make-fn &rest args)
-  (multiple-value-or
-    (values-list
-     (if consume-winning-tile-p
-         (a:when-let ((result (funcall make-fn
-                                       (cons winning-tile tiles) winning-tile
-                                       forbidden-sets class tile-count args)))
-           (append result (list nil)))
-         (dolist (tile tiles)
-           (a:when-let ((result (funcall make-fn tiles tile
-                                         forbidden-sets class tile-count args)))
-             (return (append result (list winning-tile)))))))
-    (values nil tiles winning-tile)))
+;;; Tile-set matcher - nonwinning sets
 
-(defgeneric try-make-set-from-tiles (tiles winning-tile win-from forbidden-sets)
+;;; TODO: we only need to return two values here, not three.
+(defun try-make-nonwinning-set (tiles forbidden-sets class make-fn &rest args)
+  (multiple-value-or
+    (dolist (tile tiles)
+      (a:when-let ((result (funcall make-fn tiles tile
+                                    forbidden-sets class args)))
+        (return (values-list result))))
+    (values nil tiles)))
+
+(defgeneric try-make-nonwinning-set-from-tiles (tiles forbidden-sets)
   (:method-combination chained-or))
 
 (macrolet
-    ((make ((class kind) &body body)
-       `(defmethod try-make-set-from-tiles ,class ,kind
+    ((make-free-set (class make-fn)
+       `(defmethod try-make-nonwinning-set-from-tiles ,class
+          (tiles forbidden-sets)
+          (try-make-nonwinning-set tiles forbidden-sets ',class ,make-fn))))
+  (make-free-set antoi #'try-make-same-tile-set)
+  (make-free-set ankou #'try-make-same-tile-set)
+  (make-free-set anjun #'try-make-shuntsu))
+
+;;; Tile-set matcher - winning sets
+
+(defun try-make-winning-set
+    (tiles winning-tile forbidden-sets class make-fn &rest args)
+  (multiple-value-or
+    (a:when-let ((result (funcall make-fn
+                                  (cons winning-tile tiles) winning-tile
+                                  forbidden-sets class args)))
+      (values-list (append result (list nil))))
+    (values nil tiles winning-tile)))
+
+(defgeneric try-make-winning-set-from-tiles
+    (tiles winning-tile win-from forbidden-sets)
+  (:method-combination chained-or))
+
+(macrolet
+    ((make-tsumo-set (class make-fn)
+       `(defmethod try-make-winning-set-from-tiles ,class
           (tiles winning-tile win-from forbidden-sets)
-          ,@body))
-     (make-free-set (class count make-fn)
-       ;; Try to make a set with free tiles only.
-       `(make (,class :free-tiles-only)
-              (try-make-set tiles winning-tile nil
-                            forbidden-sets ',class ,count
-                            ,make-fn)))
-     (make-tsumo-set (class count make-fn)
-       ;; Try to make a set with a self-drawn winning tile.
-       `(make (,class :winning-tile-tsumo)
-              (if (and winning-tile (eq win-from :tsumo))
-                  (try-make-set tiles winning-tile t
-                                forbidden-sets ',class ,count
-                                ,make-fn)
-                  (values nil tiles winning-tile))))
-     (make-ron-set (class count make-fn &rest args)
-       ;; Try to make a set with a melded winning tile.
-       `(make (,class :winning-tile-ron)
-              (if (and winning-tile (not (eq win-from :tsumo)))
-                  (try-make-set tiles winning-tile t
-                                forbidden-sets ',class ,count
-                                ,make-fn
-                                ,@args)
-                  (values nil tiles winning-tile)))))
-  ;; Free tiles only
-  (make-free-set antoi 2 #'try-make-same-tile-set)
-  (make-free-set ankou 3 #'try-make-same-tile-set)
-  (make-free-set anjun 3 #'try-make-shuntsu)
-  ;; Include wining tile, tsumo
-  (make-tsumo-set antoi 2 #'try-make-same-tile-set)
-  (make-tsumo-set ankou 3 #'try-make-same-tile-set)
-  (make-tsumo-set anjun 3 #'try-make-shuntsu)
-  (make-tsumo-set closed-kokushi-musou 14 #'try-make-kokushi-musou)
-  (make-tsumo-set shiisan-puutaa 14 #'try-make-shiisan-puutaa)
-  (make-tsumo-set shiisuu-puutaa 14 #'try-make-shiisuu-puutaa)
-  ;; Include winning tile, ron
-  (make-ron-set mintoi 2 #'try-make-same-tile-set win-from)
-  (make-ron-set minkou 3 #'try-make-same-tile-set win-from)
-  (make-ron-set minjun 3 #'try-make-shuntsu winning-tile win-from)
-  (make-ron-set open-kokushi-musou 14 #'try-make-kokushi-musou
+          (if (eq win-from :tsumo) ;; NOTE: this is a typecheck.
+              (try-make-winning-set tiles winning-tile
+                                    forbidden-sets ',class ,make-fn)
+              (values nil tiles winning-tile)))))
+  (make-tsumo-set antoi #'try-make-same-tile-set)
+  (make-tsumo-set ankou #'try-make-same-tile-set)
+  (make-tsumo-set anjun #'try-make-shuntsu)
+  (make-tsumo-set closed-kokushi-musou #'try-make-kokushi-musou)
+  (make-tsumo-set shiisan-puutaa #'try-make-shiisan-puutaa)
+  (make-tsumo-set shiisuu-puutaa #'try-make-shiisuu-puutaa))
+
+(macrolet
+    ((make-ron-set (class make-fn &rest args)
+       `(defmethod try-make-winning-set-from-tiles ,class
+          (tiles winning-tile win-from forbidden-sets)
+          (if (member win-from *other-players*) ;; NOTE: this is a typecheck.
+              (try-make-winning-set tiles winning-tile
+                                    forbidden-sets ',class ,make-fn ,@args)
+              (values nil tiles winning-tile)))))
+  (make-ron-set mintoi #'try-make-same-tile-set win-from)
+  (make-ron-set minkou #'try-make-same-tile-set win-from)
+  (make-ron-set minjun #'try-make-shuntsu winning-tile win-from)
+  (make-ron-set open-kokushi-musou #'try-make-kokushi-musou
                 winning-tile win-from))
+

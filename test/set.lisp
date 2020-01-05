@@ -680,10 +680,12 @@
 
 ;;; Tile-set matcher tests
 
-(defun test-make-set (&key tiles winning-tile win-from forbidden-sets
-                        expected-set expected-tiles expected-winning-tile)
+(defun test-make-winning-set
+    (&key tiles winning-tile win-from forbidden-sets
+       expected-set expected-tiles expected-winning-tile)
   (multiple-value-bind (actual-set actual-tiles actual-winning-tile)
-      (rs:try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
+      (rs:try-make-winning-set-from-tiles
+       tiles winning-tile win-from forbidden-sets)
     (if (null expected-set)
         (true (null actual-set))
         (is rs:set= expected-set actual-set))
@@ -692,62 +694,71 @@
         (true (null actual-winning-tile))
         (is rt:tile= expected-winning-tile actual-winning-tile))))
 
+(defun test-make-nonwinning-set
+    (&key tiles forbidden-sets expected-set expected-tiles)
+  (multiple-value-bind (actual-set actual-tiles)
+      (rs:try-make-nonwinning-set-from-tiles tiles forbidden-sets)
+    (if (null expected-set)
+        (true (null actual-set))
+        (is rs:set= expected-set actual-set))
+    (is rt:tile-list= expected-tiles actual-tiles)))
+
 (define-test try-make-set-antoi
   ;; 2p + 3p → ∅
-  (test-make-set
-   :tiles '([2p]) :winning-tile [3p] :win-from :tsumo
+  (test-make-winning-set
+   :tiles '([2p])
+   :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set nil
    :expected-tiles '([2p])
    :expected-winning-tile [3p])
-  (test-make-set
-   :tiles '([2p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [3p])
    :forbidden-sets '()
    :expected-set nil
-   :expected-tiles '([2p] [3p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p] [3p]))
   ;; 2p + 2p → 22p
-  (test-make-set
-   :tiles '([2p]) :winning-tile [2p] :win-from :tsumo
+  (test-make-winning-set
+   :tiles '([2p])
+   :winning-tile [2p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:antoi [2p])
    :expected-tiles '()
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [2p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p])
    :forbidden-sets '()
    :expected-set (rs:antoi [2p])
-   :expected-tiles '()
-   :expected-winning-tile nil)
+   :expected-tiles '())
   ;; 22p + 3p → 22p
-  (test-make-set
-   :tiles '([2p] [2p]) :winning-tile [3p] :win-from :tsumo
+  (test-make-winning-set
+   :tiles '([2p] [2p])
+   :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
-   :expected-set (rs:antoi [2p])
-   :expected-tiles '()
+   :expected-set nil
+   :expected-tiles '([2p] [2p])
    :expected-winning-tile [3p])
-  (test-make-set
-   :tiles '([2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p] [3p])
    :forbidden-sets '()
    :expected-set (rs:antoi [2p])
-   :expected-tiles '([3p])
-   :expected-winning-tile nil)
+   :expected-tiles '([3p]))
   ;; 23p + 3p → 33p
-  (test-make-set
-   :tiles '([2p] [3p]) :winning-tile [3p] :win-from :tsumo
+  (test-make-winning-set
+   :tiles '([2p] [3p])
+   :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:antoi [3p])
    :expected-tiles '([2p])
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [3p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [3p] [3p])
    :forbidden-sets '()
    :expected-set (rs:antoi [3p])
-   :expected-tiles '([2p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p]))
   ;; Kokushi musou pair search
   (dolist (tile rs:*kokushi-musou-tiles*)
-    (test-make-set
+    (test-make-winning-set
      :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
      :forbidden-sets
      (list (rs:closed-kokushi-musou tile)
@@ -761,29 +772,28 @@
 (define-test try-make-set-mintoi
   (do-all-other-players (player)
     ;; 2p + 3p → ∅
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
      :expected-set nil
      :expected-tiles '([2p])
      :expected-winning-tile [3p])
     ;; 2p + 2p → 22p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p]) :winning-tile [2p] :win-from player
      :forbidden-sets '()
      :expected-set (rs:mintoi [2p] player)
      :expected-tiles '()
      :expected-winning-tile nil)
     ;; 22p + 3p → 22p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [2p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
-     ;; NOTE: antoi, not mintoi - we do not use the winning tile
-     :expected-set (rs:antoi [2p])
-     :expected-tiles '()
+     :expected-set nil
+     :expected-tiles '([2p] [2p])
      :expected-winning-tile [3p])
     ;; 23p + 3p → 33p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [3p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
      :expected-set (rs:mintoi [3p] player)
@@ -791,7 +801,7 @@
      :expected-winning-tile nil)
     ;; Kokushi musou pair search
     (dolist (tile rs:*kokushi-musou-tiles*)
-      (test-make-set
+      (test-make-winning-set
        :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from player
        :forbidden-sets (list (rs:open-kokushi-musou tile tile player))
        :expected-set (rs:mintoi tile player)
@@ -800,63 +810,59 @@
 
 (define-test try-make-set-ankou
   ;; 22p + 3p → ∅
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [2p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set nil
    :expected-tiles '([2p] [2p])
    :expected-winning-tile [3p])
-  (test-make-set
-   :tiles '([2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p] [3p])
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set nil
-   :expected-tiles '([2p] [2p] [3p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p] [2p] [3p]))
   ;; 22p + 2p → 222p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [2p]) :winning-tile [2p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:ankou [2p])
    :expected-tiles '()
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [2p] [2p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p] [2p])
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:ankou [2p])
-   :expected-tiles '()
-   :expected-winning-tile nil)
+   :expected-tiles '())
   ;; 222p + 3p → 222p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [2p] [2p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
-   :expected-set (rs:ankou [2p])
-   :expected-tiles '()
+   :expected-set nil
+   :expected-tiles '([2p] [2p] [2p])
    :expected-winning-tile [3p])
-  (test-make-set
-   :tiles '([2p] [2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p] [2p] [3p])
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:ankou [2p])
-   :expected-tiles '([3p])
-   :expected-winning-tile nil)
+   :expected-tiles '([3p]))
   ;; 233p + 3p → 333p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [3p] [3p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:ankou [3p])
    :expected-tiles '([2p])
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [3p] [3p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [3p] [3p] [3p])
    :forbidden-sets '()
    :expected-set (rs:ankou [3p])
-   :expected-tiles '([2p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p]))
   ;; Chiitoitsu tenpai triplet search
   (let ((hand '([1m] [1m] [1p] [1p] [1s] [1s]
                 [EW] [EW] [SW] [SW] [WW] [WW] [NW]))
         (tiles '([1m] [1p] [1s] [EW] [SW] [WW])))
     (dolist (tile tiles)
-      (test-make-set
+      (test-make-winning-set
        :tiles hand :winning-tile tile :win-from :tsumo
        :forbidden-sets (mapcar #'rs:antoi tiles)
        :expected-set (rs:ankou tile)
@@ -866,29 +872,28 @@
 (define-test try-make-set-minkou
   (do-all-other-players (player)
     ;; 22p + 3p → ∅
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [2p]) :winning-tile [3p] :win-from player
      :forbidden-sets (list (rs:antoi [2p]))
      :expected-set nil
      :expected-tiles '([2p] [2p])
      :expected-winning-tile [3p])
     ;; 22p + 2p → 222p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [2p]) :winning-tile [2p] :win-from player
      :forbidden-sets (list (rs:antoi [2p]))
      :expected-set (rs:minkou [2p] player)
      :expected-tiles '()
      :expected-winning-tile nil)
     ;; 222p + 3p → 222p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [2p] [2p]) :winning-tile [3p] :win-from player
      :forbidden-sets (list (rs:antoi [2p]))
-     ;; NOTE: ankou, not minkou - we do not use the winning tile
-     :expected-set (rs:ankou [2p])
-     :expected-tiles '()
+     :expected-set nil
+     :expected-tiles '([2p] [2p] [2p])
      :expected-winning-tile [3p])
     ;; 233p + 3p → 333p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [3p] [3p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
      :expected-set (rs:minkou [3p] player)
@@ -899,7 +904,7 @@
                   [EW] [EW] [SW] [SW] [WW] [WW] [NW]))
           (tiles '([1m] [1p] [1s] [EW] [SW] [WW])))
       (dolist (tile tiles)
-        (test-make-set
+        (test-make-winning-set
          :tiles hand :winning-tile tile :win-from player
          :forbidden-sets (mapcar (a:rcurry #'rs:antoi) tiles)
          :expected-set (rs:minkou tile player)
@@ -908,128 +913,121 @@
 
 (define-test try-make-set-anjun
   ;; 25p + 3p → ∅
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [5p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set nil
    :expected-tiles '([2p] [5p])
    :expected-winning-tile [3p])
-  (test-make-set
-   :tiles '([2p] [5p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [5p] [3p])
    :forbidden-sets '()
    :expected-set nil
-   :expected-tiles '([2p] [5p] [3p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p] [5p] [3p]))
   ;; 24p + 3p → 234p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [4p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
    :expected-tiles '()
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [4p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [4p] [3p])
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
-   :expected-tiles '()
-   :expected-winning-tile nil)
+   :expected-tiles '())
   ;; 23p + 4p → 234p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [3p]) :winning-tile [4p] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
    :expected-tiles '()
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([2p] [3p] [4p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [3p] [4p])
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
-   :expected-tiles '()
-   :expected-winning-tile nil)
+   :expected-tiles '())
   ;; 122p + 3p → 123p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([1p] [2p] [2p]) :winning-tile [3p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:anjun [1p])
    :expected-tiles '([2p])
    :expected-winning-tile nil)
-  (test-make-set
-   :tiles '([1p] [2p] [2p] [3p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([1p] [2p] [2p] [3p])
    :forbidden-sets (list (rs:antoi [2p]))
    :expected-set (rs:anjun [1p])
-   :expected-tiles '([2p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p]))
   ;; 234p + 6p → 234p
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [3p] [4p]) :winning-tile [6p] :win-from :tsumo
    :forbidden-sets '()
-   :expected-set (rs:anjun [2p])
-   :expected-tiles '()
+   :expected-set nil
+   :expected-tiles '([2p] [3p] [4p])
    :expected-winning-tile [6p])
-  (test-make-set
-   :tiles '([2p] [3p] [4p] [6p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [3p] [4p] [6p])
    :forbidden-sets '()
    :expected-set (rs:anjun [2p])
-   :expected-tiles '([6p])
-   :expected-winning-tile nil))
+   :expected-tiles '([6p])))
 
 (define-test try-make-set-minjun
   (do-all-other-players (player)
     ;; 25p + 3p → ∅
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [5p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
      :expected-set nil
      :expected-tiles '([2p] [5p])
      :expected-winning-tile [3p])
     ;; 24p + 3p → 234p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [4p]) :winning-tile [3p] :win-from player
      :forbidden-sets '()
      :expected-set (rs:minjun [2p] [3p] player)
      :expected-tiles '()
      :expected-winning-tile nil)
     ;; 23p + 4p → 234p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [3p]) :winning-tile [4p] :win-from player
      :forbidden-sets '()
      :expected-set (rs:minjun [2p] [4p] player)
      :expected-tiles '()
      :expected-winning-tile nil)
     ;; 122p + 3p → 123p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([1p] [2p] [2p]) :winning-tile [3p] :win-from player
      :forbidden-sets (list (rs:antoi [2p]))
      :expected-set (rs:minjun [1p] [3p] player)
      :expected-tiles '([2p])
      :expected-winning-tile nil)
     ;; 234p + 6p → 234p
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [3p] [4p]) :winning-tile [6p] :win-from :tsumo
      :forbidden-sets '()
-     ;; NOTE: anjun, not minjun - we do not use the winning tile
-     :expected-set (rs:anjun [2p])
-     :expected-tiles '()
+     :expected-set nil
+     :expected-tiles '([2p] [3p] [4p])
      :expected-winning-tile [6p])))
 
 (define-test try-make-set-kantsu
   ;; NOTE: we do not allow any kans, since they must always be declared and are
   ;;       therefore only allowed in the locked sets list. Therefore, the
   ;;       matcher must not detect any kans in free tiles.
-  (test-make-set
+  (test-make-winning-set
    :tiles '([2p] [2p] [2p]) :winning-tile [2p] :win-from :tsumo
    :forbidden-sets (list (rs:antoi [2p]) (rs:ankou [2p]))
    :expected-set nil
    :expected-tiles '([2p] [2p] [2p])
    :expected-winning-tile [2p])
-  (test-make-set
-   :tiles '([2p] [2p] [2p] [2p]) :winning-tile nil :win-from :tsumo
+  (test-make-nonwinning-set
+   :tiles '([2p] [2p] [2p] [2p])
    :forbidden-sets (list (rs:antoi [2p]) (rs:ankou [2p]))
    :expected-set nil
-   :expected-tiles '([2p] [2p] [2p] [2p])
-   :expected-winning-tile nil)
+   :expected-tiles '([2p] [2p] [2p] [2p]))
   (do-all-other-players (player)
-    (test-make-set
+    (test-make-winning-set
      :tiles '([2p] [2p] [2p]) :winning-tile [2p] :win-from player
      :forbidden-sets (list (rs:antoi [2p]) (rs:mintoi [2p] player)
                            (rs:ankou [2p]) (rs:minkou [2p] player))
@@ -1039,7 +1037,7 @@
 
 (define-test try-make-set-closed-kokushi-musou
   (dolist (tile rs:*kokushi-musou-tiles*)
-    (test-make-set
+    (test-make-winning-set
      :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
      :forbidden-sets
      (list (rs:shiisan-puutaa
@@ -1052,7 +1050,7 @@
 (define-test try-make-set-open-kokushi-musou
   (do-all-other-players (player)
     (dolist (tile rs:*kokushi-musou-tiles*)
-      (test-make-set
+      (test-make-winning-set
        :tiles rs:*kokushi-musou-tiles*
        :winning-tile tile :win-from player
        :forbidden-sets '()
@@ -1061,7 +1059,7 @@
        :expected-winning-tile '()))))
 
 (define-test try-make-set-shiisan-puutaa
-  (test-make-set
+  (test-make-winning-set
    :tiles rs:*kokushi-musou-tiles* :winning-tile [1m] :win-from :tsumo
    :forbidden-sets (list (rs:closed-kokushi-musou [1m]))
    :expected-set (rs:shiisan-puutaa
@@ -1071,7 +1069,7 @@
    :expected-winning-tile '()))
 
 (define-test try-make-set-shiisuu-puutaa
-  (test-make-set
+  (test-make-winning-set
    :tiles rs:*kokushi-musou-tiles* :winning-tile [5m] :win-from :tsumo
    :forbidden-sets '()
    :expected-set (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*))

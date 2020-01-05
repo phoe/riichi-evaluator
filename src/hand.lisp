@@ -44,8 +44,8 @@
    ;; Concrete classes
    #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
    ;; Ordering finder
-   #:find-orderings
-   ))
+   #:find-winning-combinations #:find-winning-combinations-in-hand
+   #:find-sets-in-free-tiles #:find-orderings))
 
 (in-package #:riichi-evaluator.hand)
 
@@ -289,54 +289,48 @@
 
 ;;; Ordering finder
 
-;;; TODO: in 1112345678999p won with 1p, the winning set can be a 123p anjun and
-;;;       a 111p ankou. Only one of these situations is currently detected. We
-;;;       need to fix the forbidden sets mechanism, so the forbidden sets do not
-;;;       get in the way during the computation. Possibly split the forbidden
-;;;       sets into forbidden from being the winning set and forbidden in
-;;;       general.
+(defun find-winning-combinations (free-tiles winning-tile win-from)
+  (loop with forbidden-sets = '()
+        for (set remaining-tiles)
+          = (multiple-value-list
+             (try-make-winning-set-from-tiles
+              free-tiles winning-tile win-from forbidden-sets))
+        while set
+        collect (list set remaining-tiles)
+        do (push set forbidden-sets)))
+
+(defun find-winning-combinations-in-hand (hand)
+  (find-winning-combinations (free-tiles hand) (winning-tile hand)
+                             (etypecase hand
+                               (closed-hand :tsumo)
+                               (open-hand (taken-from hand)))))
+
+(defun find-sets-in-free-tiles
+    (tiles &optional (forbidden-sets '()) (other-sets '()))
+  (if (null tiles)
+      (list other-sets)
+      (multiple-value-bind (new-set new-tiles)
+          (try-make-nonwinning-set-from-tiles tiles forbidden-sets)
+        (when new-set
+          (let ((orderings-with-new-set
+                  (find-sets-in-free-tiles
+                   new-tiles forbidden-sets (cons new-set other-sets)))
+                (orderings-without-new-set
+                  (find-sets-in-free-tiles
+                   tiles (cons new-set forbidden-sets) other-sets)))
+            (nconc orderings-with-new-set
+                   orderings-without-new-set))))))
 
 (defun find-orderings (hand &optional include-non-mahjong-orderings-p)
-  (let* ((possible-orderings '()))
-    (loop with tiles = (free-tiles hand)
-          with winning-tile = (winning-tile hand)
-          with win-from = (etypecase hand
-                            (closed-hand :tsumo)
-                            (open-hand (taken-from hand)))
-          with forbidden-sets = '()
-          for new-orderings
-            = (%find-orderings tiles winning-tile win-from forbidden-sets)
-          while new-orderings
-          do (a:appendf possible-orderings new-orderings)
-             (a:nconcf forbidden-sets (a:flatten new-orderings)))
+  (let ((winning-combinations (find-winning-combinations-in-hand hand))
+        (possible-orderings '()))
+    (dolist (combination winning-combinations)
+      (destructuring-bind (winning-set remaining-tiles) combination
+        (let ((set-combinations (find-sets-in-free-tiles remaining-tiles)))
+          (dolist (free-sets set-combinations)
+            (push (list winning-set free-sets) possible-orderings)))))
     (if include-non-mahjong-orderings-p
         possible-orderings
         (remove-if-not #'mahjong-hand-p possible-orderings
                        :key (lambda (x) (cons (first x)
                                               (second x)))))))
-
-(defun %find-orderings (tiles winning-tile win-from forbidden-sets
-                        &optional winning-set (other-sets '()))
-  (if (and (null tiles) (null winning-tile))
-      (list (list winning-set other-sets))
-      (multiple-value-bind (new-set new-tiles new-winning-tile)
-          (try-make-set-from-tiles tiles winning-tile win-from forbidden-sets)
-        (when new-set
-          (let* ((winning-tile-consumed-p (and (not (null winning-tile))
-                                               (null new-winning-tile)))
-                 (orderings-with-new-set
-                   (%find-orderings new-tiles new-winning-tile win-from
-                                    forbidden-sets
-                                    (if winning-tile-consumed-p
-                                        new-set winning-set)
-                                    (if winning-tile-consumed-p
-                                        other-sets (cons new-set other-sets))))
-                 (orderings-without-new-set
-                   (%find-orderings tiles winning-tile win-from
-                                    (cons new-set forbidden-sets)
-                                    winning-set other-sets)))
-            (nconc orderings-with-new-set
-                   orderings-without-new-set))))))
-
-(defun find-winning-sets (winning-tile free-tiles)
-  )
