@@ -50,6 +50,9 @@
 
 ;;; Tile protocol
 
+;;; NOTE: maybe optimize tiles to be singletons instead of instantiating them
+;;; anew every time.
+
 (p:define-protocol-class tile () ())
 
 (defmethod make-load-form ((tile tile) &optional env)

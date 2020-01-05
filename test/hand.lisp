@@ -137,11 +137,9 @@
 
 ;;; Ordering finder
 
-;;; TODO write these, based on a couple of hands that we recognize
-
 (defun ordering= (ordering-1 ordering-2)
-  (destructuring-bind (winning-set-1 other-sets-1) ordering-1
-    (destructuring-bind (winning-set-2 other-sets-2) ordering-2
+  (destructuring-bind (winning-set-1 &optional other-sets-1) ordering-1
+    (destructuring-bind (winning-set-2 &optional other-sets-2) ordering-2
       (and (rs:set= winning-set-1 winning-set-2)
            (= (length other-sets-1) (length other-sets-2))
            (loop with result = (copy-list other-sets-2)
@@ -149,33 +147,101 @@
                  do (a:deletef result set :test #'rs:set=)
                  finally (return (null result)))))))
 
-(defun test-find-orderings (hand &rest expected-orderings)
+(defun test-orderings (hand &rest expected-orderings)
   (let ((actual-orderings (rh:find-orderings hand)))
+    (dolist (ordering actual-orderings)
+      (true (find ordering expected-orderings :test #'ordering=)))
     (dolist (ordering expected-orderings)
-      (true (some (a:curry #'ordering= ordering) actual-orderings)))))
+      (true (find ordering actual-orderings :test #'ordering=)))))
 
-(define-test find-orderings-standard
-  (test-find-orderings
-   (make-test-hand :winning-tile [1p])
-   (list (rs:anjun [1p])
-         (list (rs:ankou [1p]) (rs:anjun [4p])
-               (rs:anjun [7p]) (rs:antoi [9p]))))
-  (test-find-orderings
-   (make-test-hand :winning-tile [1p])
-   (list (rs:ankou [1p])
-         (list (rs:anjun [1p]) (rs:anjun [4p])
-               (rs:anjun [7p]) (rs:antoi [9p]))))
-  (test-find-orderings
-   (make-test-hand :winning-tile [2p])
+(define-test find-orderings-nine-gates
+  (flet ((do-test (tile &rest orderings)
+           (apply #'test-find-orderings
+                  (make-test-hand :winning-tile tile) orderings)))
+    (do-test [1p]
+      (list (rs:anjun [1p])
+            (list (rs:ankou [1p]) (rs:anjun [4p])
+                  (rs:anjun [7p]) (rs:antoi [9p])))
+      (list (rs:ankou [1p])
+            (list (rs:anjun [1p]) (rs:anjun [4p])
+                  (rs:anjun [7p]) (rs:antoi [9p]))))
+    (do-test [2p]
+      (list (rs:antoi [2p])
+            (list (rs:ankou [1p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:ankou [9p]))))
+    (do-test [3p]
+      (list (rs:anjun [1p])
+            (list (rs:antoi [1p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:ankou [9p])))
+      (list (rs:anjun [3p])
+            (list (rs:antoi [1p]) (rs:anjun [1p])
+                  (rs:anjun [6p]) (rs:ankou [9p]))))
+    (do-test [4p]
+      (list (rs:anjun [2p])
+            (list (rs:ankou [1p]) (rs:anjun [4p])
+                  (rs:anjun [7p]) (rs:antoi [9p])))
+      (list (rs:anjun [4p])
+            (list (rs:ankou [1p]) (rs:anjun [2p])
+                  (rs:anjun [7p]) (rs:antoi [9p]))))
+    (do-test [5p]
+      (list (rs:antoi [5p])
+            (list (rs:ankou [1p]) (rs:anjun [2p])
+                  (rs:anjun [6p]) (rs:ankou [9p]))))
+    (do-test [6p]
+      (list (rs:anjun [4p])
+            (list (rs:antoi [1p]) (rs:anjun [1p])
+                  (rs:anjun [6p]) (rs:ankou [9p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [1p]) (rs:anjun [1p])
+                  (rs:anjun [4p]) (rs:ankou [9p]))))
+    (do-test [7p]
+      (list (rs:anjun [5p])
+            (list (rs:ankou [1p]) (rs:anjun [2p])
+                  (rs:anjun [7p]) (rs:antoi [9p])))
+      (list (rs:anjun [7p])
+            (list (rs:ankou [1p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:antoi [9p]))))
+    (do-test [8p]
+      (list (rs:antoi [8p])
+            (list (rs:ankou [1p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:ankou [9p]))))
+    (do-test [9p]
+      (list (rs:anjun [7p])
+            (list (rs:antoi [1p]) (rs:anjun [1p])
+                  (rs:anjun [4p]) (rs:ankou [9p])))
+      (list (rs:ankou [9p])
+            (list (rs:antoi [1p]) (rs:anjun [1p])
+                  (rs:anjun [4p]) (rs:anjun [7p]))))))
+
+(define-test find-orderings-daisharin
+  (test-orderings
+   (make-test-hand
+    :winning-tile [2p]
+    :free-tiles (rt:read-tile-list-from-string "2334455667788p"))
    (list (rs:antoi [2p])
-         (list (rs:ankou [1p]) (rs:anjun [3p])
-               (rs:anjun [6p]) (rs:ankou [9p]))))  )
+         (list (rs:antoi [8p]) (rs:antoi [7p]) (rs:antoi [6p])
+               (rs:antoi [5p]) (rs:antoi [4p]) (rs:antoi [3p])))
+   (list (rs:antoi [2p])
+         (list (rs:anjun [6p]) (rs:anjun [6p])
+               (rs:anjun [3p]) (rs:anjun [3p])))
+   (list (rs:anjun [2p])
+         (list (rs:antoi [5p]) (rs:anjun [6p])
+               (rs:anjun [6p]) (rs:anjun [2p])))
+   (list (rs:anjun [2p])
+         (list (rs:antoi [8p]) (rs:anjun [5p])
+               (rs:anjun [5p]) (rs:anjun [2p])))))
 
-;; (let ((tiles '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
-;;                [6p] [7p] [8p] [9p] [9p] [9p])))
-;;   (dolist (winning-tile '([1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]))
-;;     (print (rh::%find-orderings tiles winning-tile :tsumo '()))))
+(define-test find-orderings-kokushi-musou
+  (dolist (tile rs:*kokushi-musou-tiles*)
+    (test-orderings
+     (make-test-hand :winning-tile tile
+                     :free-tiles rs:*kokushi-musou-tiles*)
+     (list (rs:closed-kokushi-musou tile))
+     (list (rs:shiisan-puutaa tile (remove tile rs:*kokushi-musou-tiles*
+                                           :test #'rt:tile=))))))
 
-;; (let ((tiles '([1p] [1p] [2p] [2p] [3p] [3p]
-;;                [4p] [4p] [5p] [5p] [6p] [6p] [7p])))
-;;   (print (rh::%find-orderings tiles [7p] :tsumo '())))
+(define-test find-orderings-shiisuu-puutaa
+  (test-orderings
+   (make-test-hand :winning-tile [5m]
+                   :free-tiles rs:*kokushi-musou-tiles*)
+   (list (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*)))))
