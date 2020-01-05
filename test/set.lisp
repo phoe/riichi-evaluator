@@ -692,7 +692,6 @@
         (true (null actual-winning-tile))
         (is rt:tile= expected-winning-tile actual-winning-tile))))
 
-;; TODO: wait for IS-VALUES to be fixed.
 (define-test try-make-set-antoi
   ;; 2p + 3p → ∅
   (test-make-set
@@ -1038,7 +1037,43 @@
      :expected-tiles '([2p] [2p] [2p])
      :expected-winning-tile [2p])))
 
-;; TODO (define-test try-make-set-closed-kokushi-musou)
-;; TODO (define-test try-make-set-open-kokushi-musou)
-;; TODO (define-test try-make-set-shiisan-puutaa)
-;; TODO (define-test try-make-set-shiisuu-puutaa)
+(define-test try-make-set-closed-kokushi-musou
+  (dolist (tile rs:*kokushi-musou-tiles*)
+    (test-make-set
+     :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
+     :forbidden-sets
+     (list (rs:shiisan-puutaa
+            tile
+            (remove tile rs:*kokushi-musou-tiles* :test #'rt:tile=)))
+     :expected-set (rs:closed-kokushi-musou tile)
+     :expected-tiles '()
+     :expected-winning-tile '())))
+
+(define-test try-make-set-open-kokushi-musou
+  (do-all-other-players (player)
+    (dolist (tile rs:*kokushi-musou-tiles*)
+      (test-make-set
+       :tiles rs:*kokushi-musou-tiles*
+       :winning-tile tile :win-from player
+       :forbidden-sets '()
+       :expected-set (rs:open-kokushi-musou tile tile player)
+       :expected-tiles '()
+       :expected-winning-tile '()))))
+
+(define-test try-make-set-shiisan-puutaa
+  (test-make-set
+   :tiles rs:*kokushi-musou-tiles* :winning-tile [1m] :win-from :tsumo
+   :forbidden-sets (list (rs:closed-kokushi-musou [1m]))
+   :expected-set (rs:shiisan-puutaa
+                  [1m]
+                  (remove [1m] rs:*kokushi-musou-tiles* :test #'rt:tile=))
+   :expected-tiles '()
+   :expected-winning-tile '()))
+
+(define-test try-make-set-shiisuu-puutaa
+  (test-make-set
+   :tiles rs:*kokushi-musou-tiles* :winning-tile [5m] :win-from :tsumo
+   :forbidden-sets '()
+   :expected-set (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*))
+   :expected-tiles '()
+   :expected-winning-tile '()))
