@@ -211,7 +211,7 @@
                                  :taken-from player)
                 'rs:invalid-kokushi-musou)))))))
 
-(defun single-tiles-puuta-ok (tiles)
+(defun single-tiles-puutaa-ok (tiles)
   (dolist (suit *allowed-suits* t)
     (let ((tiles-in-suit (remove-if-not (a:curry #'eq suit)
                                         tiles
@@ -220,7 +220,7 @@
         (dolist (tile-2 (remove tile-1 tiles-in-suit
                                 :test #'rt:tile=))
           (when (< (abs (- (rt:rank tile-1) (rt:rank tile-2))) 3)
-            (return-from single-tiles-puuta-ok nil)))))))
+            (return-from single-tiles-puutaa-ok nil)))))))
 
 (define-test set-shiisan-puutaa
   ;; NOTE: the following randomized test scores runs until it scores at least
@@ -230,7 +230,7 @@
       (when (and positive-p negative-p) (return))
       (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 13)))
         (destructuring-bind (pair-tile . single-tiles) tiles
-          (cond ((single-tiles-puuta-ok tiles)
+          (cond ((single-tiles-puutaa-ok tiles)
                  (let ((set (make-instance 'rs:shiisan-puutaa
                                            :single-tiles single-tiles
                                            :pair-tile pair-tile)))
@@ -250,7 +250,7 @@
     (dotimes (i 10000)
       (when (and positive-p negative-p) (return))
       (let ((tiles (subseq (a:shuffle (copy-list *all-tiles*)) 0 14)))
-        (cond ((single-tiles-puuta-ok tiles)
+        (cond ((single-tiles-puutaa-ok tiles)
                (let ((set (make-instance 'rs:shiisuu-puutaa
                                          :single-tiles tiles)))
                  (is rt:tile-list= tiles (rs:single-tiles set)))
