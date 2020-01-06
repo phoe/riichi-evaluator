@@ -53,15 +53,15 @@
   (fail (make-test-hand :locked-sets '(:keyword)) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "1145678999p")
-                        :locked-sets (rs:read-set-from-string "123p"))
+                        :locked-sets (rs:make-set "123p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "2345678999p")
-                        :locked-sets (rs:read-set-from-string "111p"))
+                        :locked-sets (rs:make-set "111p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles
                         (rt:read-tile-list-from-string "11123456789p")
-                        :locked-sets (rs:read-set-from-string "99p"))
+                        :locked-sets (rs:make-set "99p"))
       'rh:closed-locked-set)
   (fail (make-test-hand :free-tiles :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :free-tiles '(:keyword)) 'rh:invalid-hand-element)
@@ -84,7 +84,7 @@
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112345678999p")
-         :locked-sets (rs:read-set-from-string "4*56p"))
+         :locked-sets (rs:make-set "4*56p"))
       'rh:invalid-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "112345678999p"))
@@ -94,11 +94,11 @@
       'rh:invalid-same-tile-count)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
-         :locked-sets (rs:read-set-from-string "456*p"))
+         :locked-sets (rs:make-set "456*p"))
       'rh:minjun-invalid-meld)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
-         :locked-sets (rs:read-set-from-string "456p"))
+         :locked-sets (rs:make-set "456p"))
       'rh:closed-locked-set)
   (fail (make-test-hand
          :class 'rh:open-ron-hand
@@ -112,11 +112,11 @@
                    :taken-from :toimen)
                   (:class rh:open-tsumo-hand
                    :free-tiles ,(rt:read-tile-list-from-string "1145678999p")
-                   :locked-sets ,(rs:read-set-from-string "2*13p"))
+                   :locked-sets ,(rs:make-set "2*13p"))
                   (:class rh:open-ron-hand
                    :taken-from :toimen
                    :free-tiles ,(rt:read-tile-list-from-string "1145678999p")
-                   :locked-sets ,(rs:read-set-from-string "2*13p"))))
+                   :locked-sets ,(rs:make-set "2*13p"))))
     (let ((expected-closed-hand
             '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
               [6p] [7p] [8p] [9p] [9p] [9p]))

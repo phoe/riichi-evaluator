@@ -269,7 +269,7 @@
         (let ((result-string (rs:print-set set nil)))
           (is string= expected-string result-string
               "string=: ~A ~A" string result-string))
-        (let ((result-sets (rs:read-set-from-string string)))
+        (let ((result-sets (rs:make-set string)))
           (true (member set result-sets :test #'rs:set=)
                 "set=: ~A ~A" set result-sets))))))
 
@@ -514,7 +514,7 @@
 
 (define-test read-set-negative
   (flet ((test (string)
-           (fail (rs:read-set-from-string string) 'rs:set-reader-error)))
+           (fail (rs:make-set string) 'rs:set-reader-error)))
     (map nil #'test
          '("124p" "boo" "  " "3p" "12p" "13p" "123q"
            "111*1z" "1*11**1z" "11**11z" ""

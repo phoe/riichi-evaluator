@@ -63,7 +63,7 @@
    #:closed-kokushi-musou #:open-kokushi-musou
    #:shiisan-puutaa #:shiisuu-puutaa
    ;; Set reader and printer
-   #:print-set #:read-set #:read-set-from-string
+   #:print-set #:read-set #:read-set-from-string #:make-set
    ;; Tile-set matcher
    #:try-make-winning-set-from-tiles #:try-make-nonwinning-set-from-tiles
    ))
@@ -574,6 +574,9 @@
   (flet ((complain () (error 'set-reader-error :offending-string string)))
     (handler-case (or (try-read-set (parse-set-string string)) (complain))
       (riichi-evaluator-error () (complain)))))
+
+(defun make-set (string)
+  (read-set-from-string string))
 
 (defun try-read-make-tile (rank suit)
   (if (eq suit :honor)
