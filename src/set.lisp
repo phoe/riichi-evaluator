@@ -47,7 +47,7 @@
    #:same-tile-set #:same-tile-set-tile
    #:closed-set #:open-set #:taken-from
    #:standard-set
-   #:toitsu #:koutsu #:kantsu #:shuntsu #:shuntsu-lowest-tile
+   #:toitsu #:koutsu #:kantsu #:minkan #:shuntsu #:shuntsu-lowest-tile
    #:open-tile-set #:open-tile
    #:full-hand-set
    #:singles-set #:single-tiles
@@ -351,6 +351,8 @@
               (when (< rank-difference 3)
                 (return-from verify-puutaa-tiles (list tile-1 tile-2))))))))))
 
+(p:define-protocol-class minkan (open-set kantsu) ())
+
 ;;; Concrete classes
 
 (defclass antoi (closed-set toitsu) ())
@@ -373,11 +375,11 @@
 (defun ankan (tile)
   (make-instance 'ankan :tile tile))
 
-(defclass daiminkan (open-set kantsu) ())
+(defclass daiminkan (minkan) ())
 (defun daiminkan (tile taken-from)
   (make-instance 'daiminkan :tile tile :taken-from taken-from))
 
-(defclass shouminkan (open-set kantsu) ())
+(defclass shouminkan (minkan) ())
 (defun shouminkan (tile taken-from)
   (make-instance 'shouminkan :tile tile :taken-from taken-from))
 

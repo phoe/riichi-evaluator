@@ -595,3 +595,6 @@
    (make-test-hand :winning-tile [5m]
                    :free-tiles rs:*kokushi-musou-tiles*)
    (list (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*)))))
+
+;;; TODO: test all the waits from http://arcturus.su/wiki/Machi, in particular
+;;;       http://arcturus.su/wiki/Complex_waits
