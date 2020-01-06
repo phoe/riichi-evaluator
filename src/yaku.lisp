@@ -34,6 +34,8 @@
 
 (in-package #:riichi-evaluator.yaku)
 
+;;; TODO: maybe move some of this to scoring.lisp
+
 (defun count-fu (hand ordering)
   (if (chiitoi-p ordering)
       '((:chiitoitsu 25))
