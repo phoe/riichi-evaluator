@@ -34,7 +34,7 @@
    #:invalid-hand #:invalid-hand-element
    #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
-   #:closed-locked-set
+   #:closed-locked-set #:open-hand-no-open-sets
    ;; Protocol
    #:hand #:prevailing-wind #:seat-wind #:winning-tile #:locked-sets
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
@@ -121,7 +121,18 @@
   (:report
    (lambda (condition stream)
      (format stream "The hand ~S contains closed locked non-kan sets in its ~
-                       list of locked sets ~S."
+                     list of locked sets ~S."
+             (invalid-hand-hand condition)
+             (locked-sets condition)))))
+
+(define-condition open-hand-no-open-sets (invalid-hand)
+  ((%locked-sets :reader locked-sets :initarg :locked-sets))
+  (:default-initargs
+   :locked-sets (a:required-argument :locked-sets))
+  (:report
+   (lambda (condition stream)
+     (format stream "Attempted to create an open hand ~S with no open sets in ~
+                     the locked sets list ~S."
              (invalid-hand-hand condition)
              (locked-sets condition)))))
 
@@ -243,8 +254,13 @@
   (check-hand-elt-type hand taken-from
                        '#.`(member ,@*other-players*)))
 
-;;; TODO: check if the open hand has at least one open locked set.
 (p:define-protocol-class open-hand (hand) ())
+
+(defmethod initialize-instance :after ((hand open-hand) &key)
+  (let ((sets (locked-sets hand)))
+    (unless (find-if (a:rcurry #'typep 'open-set) sets)
+      (error 'open-hand-no-open-sets :hand hand :locked-sets sets))))
+
 (p:define-protocol-class closed-hand (hand)
   ((%ura-dora-list :accessor ura-dora-list :initarg :ura-dora-list))
   (:default-initargs

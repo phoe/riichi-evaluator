@@ -99,40 +99,63 @@
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "1112378999p")
          :locked-sets (rs:read-set-from-string "456p"))
-      'rh:closed-locked-set))
+      'rh:closed-locked-set)
+  (fail (make-test-hand
+         :class 'rh:open-ron-hand
+         :taken-from :kamicha
+         :free-tiles (rt:read-tile-list-from-string "1112345678999p"))
+      'rh:open-hand-no-open-sets))
 
 (define-test hand-positive
-  (dolist (args '((:class rh:closed-tsumo-hand)
+  (dolist (args `((:class rh:closed-tsumo-hand)
                   (:class rh:closed-ron-hand
                    :taken-from :toimen)
-                  (:class rh:open-tsumo-hand)
+                  (:class rh:open-tsumo-hand
+                   :free-tiles ,(rt:read-tile-list-from-string "1145678999p")
+                   :locked-sets ,(rs:read-set-from-string "2*13p"))
                   (:class rh:open-ron-hand
-                   :taken-from :toimen)))
-    (let ((expected-hand
+                   :taken-from :toimen
+                   :free-tiles ,(rt:read-tile-list-from-string "1145678999p")
+                   :locked-sets ,(rs:read-set-from-string "2*13p"))))
+    (let ((expected-closed-hand
             '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
               [6p] [7p] [8p] [9p] [9p] [9p]))
+          (expected-open-hand
+            '([1p] [1p] [4p] [5p]
+              [6p] [7p] [8p] [9p] [9p] [9p]))
           (expected-visible-tiles
-            '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
-              [6p] [7p] [8p] [9p] [9p] [9p]
-              [1p] [3p]))
+            '([1p] [1p] [1p] [1p] [2p] [3p] [3p] [4p] [5p]
+              [6p] [7p] [8p] [9p] [9p] [9p]))
           (hand (apply #'make-test-hand args)))
       (is eq :east (rh:prevailing-wind hand))
       (is eq :east (rh:seat-wind hand))
       (is rt:tile= [1p] (rh:winning-tile hand))
-      (is eq '() (rh:locked-sets hand))
       (is rt:tile-list= '([3p]) (rh:dora-list hand))
       (is eq '() (rh:situations hand))
-      (is rt:tile-list= expected-hand (rh:free-tiles hand))
       (is rt:tile-list= expected-visible-tiles
-          (rh:hand-total-visible-tiles hand))
+          (sort (copy-list (rh:hand-total-visible-tiles hand)) #'rt:tile<))
       (typecase hand
         (rh:closed-tsumo-hand
+         (is rt:tile-list= expected-closed-hand (rh:free-tiles hand))
+         (is eq '() (rh:locked-sets hand))
          (is eq '() (rh:ura-dora-list hand)))
         (rh:closed-ron-hand
+         (is rt:tile-list= expected-closed-hand (rh:free-tiles hand))
+         (is eq '() (rh:locked-sets hand))
          (is eq :toimen (rh:taken-from hand))
          (is eq '() (rh:ura-dora-list hand)))
-        (rh:open-tsumo-hand)
+        (rh:open-tsumo-hand
+         (is rt:tile-list= expected-open-hand
+             (sort (copy-list (rh:free-tiles hand)) #'rt:tile<))
+         (is = 1 (length (rh:locked-sets hand)))
+         (is rs:set= (rs:minjun [1p] [2p] :kamicha)
+             (first (rh:locked-sets hand))))
         (rh:open-ron-hand
+         (is rt:tile-list= expected-open-hand
+             (sort (copy-list (rh:free-tiles hand)) #'rt:tile<))
+         (is = 1 (length (rh:locked-sets hand)))
+         (is rs:set= (rs:minjun [1p] [2p] :kamicha)
+             (first (rh:locked-sets hand)))
          (is eq :toimen (rh:taken-from hand)))))))
 
 ;;; Ordering finder
