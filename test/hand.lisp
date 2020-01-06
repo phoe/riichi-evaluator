@@ -137,23 +137,13 @@
 
 ;;; Ordering finder
 
-(defun ordering= (ordering-1 ordering-2)
-  (destructuring-bind (winning-set-1 &optional other-sets-1) ordering-1
-    (destructuring-bind (winning-set-2 &optional other-sets-2) ordering-2
-      (and (rs:set= winning-set-1 winning-set-2)
-           (= (length other-sets-1) (length other-sets-2))
-           (loop with result = (copy-list other-sets-2)
-                 for set in other-sets-1
-                 do (a:deletef result set :test #'rs:set=)
-                 finally (return (null result)))))))
-
 (defun test-orderings (hand &rest expected-orderings)
   (let ((actual-orderings (rh:find-orderings hand)))
     (dolist (ordering actual-orderings)
-      (true (find ordering expected-orderings :test #'ordering=)
+      (true (find ordering expected-orderings :test #'rh:ordering=)
             "~S not found in:~%~S" ordering expected-orderings))
     (dolist (ordering expected-orderings)
-      (true (find ordering actual-orderings :test #'ordering=)
+      (true (find ordering actual-orderings :test #'rh:ordering=)
             "~S not found in:~%~S" ordering expected-orderings))))
 
 ;;; Ordering tests - chuuren poutou
@@ -488,7 +478,7 @@
 
 ;;; Ordering tests - kokushi musou and puutaa
 
-(define-test find-orderings-kokushi-musou-tsumo-shiisan-puutaa
+(define-test find-orderings-closed-kokushi-musou-shiisan-puutaa
   (dolist (tile rs:*kokushi-musou-tiles*)
     (test-orderings
      (make-test-hand :winning-tile tile
@@ -497,7 +487,7 @@
      (list (rs:shiisan-puutaa tile (remove tile rs:*kokushi-musou-tiles*
                                            :test #'rt:tile=))))))
 
-(define-test find-orderings-kokushi-musou-ron
+(define-test find-orderings-open-kokushi-musou
   (do-all-other-players (player)
     (dolist (pair-tile rs:*kokushi-musou-tiles*)
       (dolist (open-tile rs:*kokushi-musou-tiles*)

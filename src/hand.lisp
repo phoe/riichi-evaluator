@@ -44,6 +44,7 @@
    ;; Concrete classes
    #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
    ;; Ordering finder
+   #:ordering=
    #:find-winning-combinations #:find-winning-combinations-in-hand
    #:find-sets-in-free-tiles #:find-orderings))
 
@@ -289,6 +290,16 @@
        (is-number-sets-of-type-p 0 '(not full-hand-set) sets)))
 
 ;;; Ordering finder
+
+(defun ordering= (ordering-1 ordering-2)
+  (destructuring-bind (winning-set-1 &optional other-sets-1) ordering-1
+    (destructuring-bind (winning-set-2 &optional other-sets-2) ordering-2
+      (and (set= winning-set-1 winning-set-2)
+           (= (length other-sets-1) (length other-sets-2))
+           (loop with result = (copy-list other-sets-2)
+                 for set in other-sets-1
+                 do (a:deletef result set :test #'set=)
+                 finally (return (null result)))))))
 
 (defun find-winning-combinations (free-tiles winning-tile win-from)
   (loop with forbidden-sets = '()
