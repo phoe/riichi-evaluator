@@ -50,8 +50,8 @@
 
 ;;; Tile protocol
 
-;;; NOTE: maybe optimize tiles to be singletons instead of instantiating them
-;;; anew every time.
+;;; TODO: maybe optimize tiles to be singletons instead of instantiating them
+;;;       anew every time. Check if this speeds tests up.
 
 (p:define-protocol-class tile () ())
 

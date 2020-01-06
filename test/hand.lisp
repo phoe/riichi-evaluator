@@ -150,13 +150,17 @@
 (defun test-orderings (hand &rest expected-orderings)
   (let ((actual-orderings (rh:find-orderings hand)))
     (dolist (ordering actual-orderings)
-      (true (find ordering expected-orderings :test #'ordering=)))
+      (true (find ordering expected-orderings :test #'ordering=)
+            "~S not found in:~%~S" ordering expected-orderings))
     (dolist (ordering expected-orderings)
-      (true (find ordering actual-orderings :test #'ordering=)))))
+      (true (find ordering actual-orderings :test #'ordering=)
+            "~S not found in:~%~S" ordering expected-orderings))))
 
-(define-test find-orderings-nine-gates
+;;; Ordering tests - chuuren poutou
+
+(define-test find-orderings-chuuren-poutou-tsumo
   (flet ((do-test (tile &rest orderings)
-           (apply #'test-find-orderings
+           (apply #'test-orderings
                   (make-test-hand :winning-tile tile) orderings)))
     (do-test [1p]
       (list (rs:anjun [1p])
@@ -213,25 +217,278 @@
             (list (rs:antoi [1p]) (rs:anjun [1p])
                   (rs:anjun [4p]) (rs:anjun [7p]))))))
 
-(define-test find-orderings-daisharin
-  (test-orderings
-   (make-test-hand
-    :winning-tile [2p]
-    :free-tiles (rt:read-tile-list-from-string "2334455667788p"))
-   (list (rs:antoi [2p])
-         (list (rs:antoi [8p]) (rs:antoi [7p]) (rs:antoi [6p])
-               (rs:antoi [5p]) (rs:antoi [4p]) (rs:antoi [3p])))
-   (list (rs:antoi [2p])
-         (list (rs:anjun [6p]) (rs:anjun [6p])
-               (rs:anjun [3p]) (rs:anjun [3p])))
-   (list (rs:anjun [2p])
-         (list (rs:antoi [5p]) (rs:anjun [6p])
-               (rs:anjun [6p]) (rs:anjun [2p])))
-   (list (rs:anjun [2p])
-         (list (rs:antoi [8p]) (rs:anjun [5p])
-               (rs:anjun [5p]) (rs:anjun [2p])))))
+(define-test find-orderings-chuuren-poutou-ron
+  (do-all-other-players (player)
+    (flet ((do-test (tile &rest orderings)
+             (apply #'test-orderings
+                    (make-test-hand :class 'rh:closed-ron-hand
+                                    :winning-tile tile :taken-from player)
+                    orderings)))
+      (do-test [1p]
+        (list (rs:minjun [1p] [1p] player)
+              (list (rs:ankou [1p]) (rs:anjun [4p])
+                    (rs:anjun [7p]) (rs:antoi [9p])))
+        (list (rs:minkou [1p] player)
+              (list (rs:anjun [1p]) (rs:anjun [4p])
+                    (rs:anjun [7p]) (rs:antoi [9p]))))
+      (do-test [2p]
+        (list (rs:mintoi [2p] player)
+              (list (rs:ankou [1p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:ankou [9p]))))
+      (do-test [3p]
+        (list (rs:minjun [1p] [3p] player)
+              (list (rs:antoi [1p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:ankou [9p])))
+        (list (rs:minjun [3p] [3p] player)
+              (list (rs:antoi [1p]) (rs:anjun [1p])
+                    (rs:anjun [6p]) (rs:ankou [9p]))))
+      (do-test [4p]
+        (list (rs:minjun [2p] [4p] player)
+              (list (rs:ankou [1p]) (rs:anjun [4p])
+                    (rs:anjun [7p]) (rs:antoi [9p])))
+        (list (rs:minjun [4p] [4p] player)
+              (list (rs:ankou [1p]) (rs:anjun [2p])
+                    (rs:anjun [7p]) (rs:antoi [9p]))))
+      (do-test [5p]
+        (list (rs:mintoi [5p] player)
+              (list (rs:ankou [1p]) (rs:anjun [2p])
+                    (rs:anjun [6p]) (rs:ankou [9p]))))
+      (do-test [6p]
+        (list (rs:minjun [4p] [6p] player)
+              (list (rs:antoi [1p]) (rs:anjun [1p])
+                    (rs:anjun [6p]) (rs:ankou [9p])))
+        (list (rs:minjun [6p] [6p] player)
+              (list (rs:antoi [1p]) (rs:anjun [1p])
+                    (rs:anjun [4p]) (rs:ankou [9p]))))
+      (do-test [7p]
+        (list (rs:minjun [5p] [7p] player)
+              (list (rs:ankou [1p]) (rs:anjun [2p])
+                    (rs:anjun [7p]) (rs:antoi [9p])))
+        (list (rs:minjun [7p] [7p] player)
+              (list (rs:ankou [1p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:antoi [9p]))))
+      (do-test [8p]
+        (list (rs:mintoi [8p] player)
+              (list (rs:ankou [1p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:ankou [9p]))))
+      (do-test [9p]
+        (list (rs:minjun [7p] [9p] player)
+              (list (rs:antoi [1p]) (rs:anjun [1p])
+                    (rs:anjun [4p]) (rs:ankou [9p])))
+        (list (rs:minkou [9p] player)
+              (list (rs:antoi [1p]) (rs:anjun [1p])
+                    (rs:anjun [4p]) (rs:anjun [7p]))))))
+  )
 
-(define-test find-orderings-kokushi-musou
+;;; Ordering tests - daisharin
+
+(defparameter *daisharin-tiles*
+  (rt:read-tile-list-from-string "22334455667788p"))
+
+(define-test find-orderings-daisharin-tsumo
+  (flet ((do-test (tile &rest orderings)
+           (let* ((new-tiles (remove tile *daisharin-tiles*
+                                     :test #'rt:tile= :count 1)))
+             (apply #'test-orderings
+                    (make-test-hand :winning-tile tile :free-tiles new-tiles)
+                    orderings))))
+    (do-test [2p]
+      (list (rs:antoi [2p])
+            (list (rs:antoi [3p]) (rs:antoi [4p]) (rs:antoi [5p])
+                  (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+      (list (rs:antoi [2p])
+            (list (rs:anjun [3p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:anjun [5p]))))
+    (do-test [3p]
+      (list (rs:antoi [3p])
+            (list (rs:antoi [2p]) (rs:antoi [4p]) (rs:antoi [5p])
+                  (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+      (list (rs:anjun [3p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:anjun [5p]))))
+    (do-test [4p]
+      (list (rs:antoi [4p])
+            (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [5p])
+                  (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+      (list (rs:anjun [3p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [2p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:anjun [5p]))))
+    (do-test [5p]
+      (list (rs:antoi [5p])
+            (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                  (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+      (list (rs:antoi [5p])
+            (list (rs:anjun [2p]) (rs:anjun [2p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [3p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [6p]) (rs:anjun [6p])))
+      (list (rs:anjun [5p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [5p]))))
+    (do-test [6p]
+      (list (rs:antoi [6p])
+            (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                  (rs:antoi [5p]) (rs:antoi [7p]) (rs:antoi [8p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [3p]) (rs:anjun [6p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [6p])))
+      (list (rs:anjun [5p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [5p]))))
+    (do-test [7p]
+      (list (rs:antoi [7p])
+            (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                  (rs:antoi [5p]) (rs:antoi [6p]) (rs:antoi [8p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [3p]) (rs:anjun [6p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [6p])))
+      (list (rs:anjun [5p])
+            (list (rs:antoi [8p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [5p]))))
+    (do-test [8p]
+      (list (rs:antoi [8p])
+            (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                  (rs:antoi [5p]) (rs:antoi [6p]) (rs:antoi [7p])))
+      (list (rs:antoi [8p])
+            (list (rs:anjun [2p]) (rs:anjun [2p])
+                  (rs:anjun [5p]) (rs:anjun [5p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [2p]) (rs:anjun [3p])
+                  (rs:anjun [3p]) (rs:anjun [6p])))
+      (list (rs:anjun [6p])
+            (list (rs:antoi [5p]) (rs:anjun [2p])
+                  (rs:anjun [2p]) (rs:anjun [6p]))))))
+
+(define-test find-orderings-daisharin-ron
+  (do-all-other-players (player)
+    (flet ((do-test (tile &rest orderings)
+             (let* ((new-tiles (remove tile *daisharin-tiles*
+                                       :test #'rt:tile= :count 1)))
+               (apply #'test-orderings
+                      (make-test-hand :class 'rh:closed-ron-hand
+                                      :winning-tile tile:free-tiles new-tiles
+                                      :taken-from player)
+                      orderings))))
+      (do-test [2p]
+        (list (rs:mintoi [2p] player)
+              (list (rs:antoi [3p]) (rs:antoi [4p]) (rs:antoi [5p])
+                    (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+        (list (rs:mintoi [2p] player)
+              (list (rs:anjun [3p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [2p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [2p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:anjun [5p]))))
+      (do-test [3p]
+        (list (rs:mintoi [3p] player)
+              (list (rs:antoi [2p]) (rs:antoi [4p]) (rs:antoi [5p])
+                    (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+        (list (rs:minjun [3p] [3p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [3p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [3p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:anjun [5p]))))
+      (do-test [4p]
+        (list (rs:mintoi [4p] player)
+              (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [5p])
+                    (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+        (list (rs:minjun [3p] [4p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [4p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [2p] [4p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:anjun [5p]))))
+      (do-test [5p]
+        (list (rs:mintoi [5p] player)
+              (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                    (rs:antoi [6p]) (rs:antoi [7p]) (rs:antoi [8p])))
+        (list (rs:mintoi [5p] player)
+              (list (rs:anjun [2p]) (rs:anjun [2p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [3p] [5p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [6p]) (rs:anjun [6p])))
+        (list (rs:minjun [5p] [5p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [5p]))))
+      (do-test [6p]
+        (list (rs:mintoi [6p] player)
+              (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                    (rs:antoi [5p]) (rs:antoi [7p]) (rs:antoi [8p])))
+        (list (rs:minjun [6p] [6p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [3p]) (rs:anjun [6p])))
+        (list (rs:minjun [6p] [6p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [6p])))
+        (list (rs:minjun [5p] [6p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [5p]))))
+      (do-test [7p]
+        (list (rs:mintoi [7p] player)
+              (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                    (rs:antoi [5p]) (rs:antoi [6p]) (rs:antoi [8p])))
+        (list (rs:minjun [6p] [7p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [3p]) (rs:anjun [6p])))
+        (list (rs:minjun [6p] [7p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [6p])))
+        (list (rs:minjun [5p] [7p] player)
+              (list (rs:antoi [8p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [5p]))))
+      (do-test [8p]
+        (list (rs:mintoi [8p] player)
+              (list (rs:antoi [2p]) (rs:antoi [3p]) (rs:antoi [4p])
+                    (rs:antoi [5p]) (rs:antoi [6p]) (rs:antoi [7p])))
+        (list (rs:mintoi [8p] player)
+              (list (rs:anjun [2p]) (rs:anjun [2p])
+                    (rs:anjun [5p]) (rs:anjun [5p])))
+        (list (rs:minjun [6p] [8p] player)
+              (list (rs:antoi [2p]) (rs:anjun [3p])
+                    (rs:anjun [3p]) (rs:anjun [6p])))
+        (list (rs:minjun [6p] [8p] player)
+              (list (rs:antoi [5p]) (rs:anjun [2p])
+                    (rs:anjun [2p]) (rs:anjun [6p])))))))
+
+;;; Ordering tests - kokushi musou and puutaa
+
+(define-test find-orderings-kokushi-musou-tsumo-shiisan-puutaa
   (dolist (tile rs:*kokushi-musou-tiles*)
     (test-orderings
      (make-test-hand :winning-tile tile
@@ -240,8 +497,24 @@
      (list (rs:shiisan-puutaa tile (remove tile rs:*kokushi-musou-tiles*
                                            :test #'rt:tile=))))))
 
+(define-test find-orderings-kokushi-musou-ron
+  (do-all-other-players (player)
+    (dolist (pair-tile rs:*kokushi-musou-tiles*)
+      (dolist (open-tile rs:*kokushi-musou-tiles*)
+        (let ((free-tiles (cons pair-tile
+                                (remove open-tile rs:*kokushi-musou-tiles*
+                                        :count 1 :test #'rt:tile=))))
+          (test-orderings
+           (make-test-hand :winning-tile open-tile
+                           :class 'rh:closed-ron-hand
+                           :free-tiles free-tiles
+                           :taken-from player)
+           (list (rs:open-kokushi-musou pair-tile open-tile player))))))))
+
 (define-test find-orderings-shiisuu-puutaa
   (test-orderings
    (make-test-hand :winning-tile [5m]
                    :free-tiles rs:*kokushi-musou-tiles*)
    (list (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*)))))
+
+;;; TODO tests with locked sets in the hand

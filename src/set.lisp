@@ -670,9 +670,8 @@
        (let ((new-tiles (copy-list tiles)))
          (dolist (tile *kokushi-musou-tiles*)
            (a:deletef new-tiles tile :test #'tile= :count 1))
-         (if (and (= 1 (length new-tiles))
-                  (member (first new-tiles) *kokushi-musou-tiles* :test #'tile=))
-             t nil))))
+         (and (= 1 (length new-tiles))
+              (member (first new-tiles) *kokushi-musou-tiles* :test #'tile=)))))
 
 (defmethod try-read-set :kokushi-musou (ordered)
   (when (= 14 (length ordered))
@@ -750,12 +749,12 @@
           (list set (remove tile tiles :count tile-count :test #'tile=)))))))
 
 (defun try-make-kokushi-musou (tiles tile forbidden-sets class args)
+  (declare (ignore tile))
   (when (good-kokushi-musou-p tiles)
     (let ((pair-tile (tiles-pair-tile tiles)))
-      (when (tile= tile pair-tile)
-        (let ((set (apply class pair-tile args)))
-          (unless (member set forbidden-sets :test #'set=)
-            (list set '())))))))
+      (let ((set (apply class pair-tile args)))
+        (unless (member set forbidden-sets :test #'set=)
+          (list set '()))))))
 
 (defun try-make-shiisan-puutaa (tiles tile forbidden-sets class args)
   (declare (ignore tile args))

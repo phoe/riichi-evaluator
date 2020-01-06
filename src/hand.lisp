@@ -234,14 +234,15 @@
 
 (p:define-protocol-class tsumo-hand (hand) ())
 (p:define-protocol-class ron-hand (hand)
-  ((%losing-player :accessor losing-player :initarg :losing-player))
+  ((%taken-from :accessor taken-from :initarg :taken-from))
   (:default-initargs
-   :losing-player (a:required-argument :losing-player)))
+   :taken-from (a:required-argument :taken-from)))
 
-(defmethod initialize-instance :before ((hand ron-hand) &key losing-player)
-  (check-hand-elt-type hand losing-player
+(defmethod initialize-instance :before ((hand ron-hand) &key taken-from)
+  (check-hand-elt-type hand taken-from
                        '#.`(member ,@*other-players*)))
 
+;;; TODO: check if the open hand has at least one open locked set.
 (p:define-protocol-class open-hand (hand) ())
 (p:define-protocol-class closed-hand (hand)
   ((%ura-dora-list :accessor ura-dora-list :initarg :ura-dora-list))
@@ -302,8 +303,8 @@
 (defun find-winning-combinations-in-hand (hand)
   (find-winning-combinations (free-tiles hand) (winning-tile hand)
                              (etypecase hand
-                               (closed-hand :tsumo)
-                               (open-hand (taken-from hand)))))
+                               (tsumo-hand :tsumo)
+                               (ron-hand (taken-from hand)))))
 
 (defun find-sets-in-free-tiles
     (tiles &optional (forbidden-sets '()) (other-sets '()))

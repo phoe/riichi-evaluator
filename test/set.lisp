@@ -1040,7 +1040,8 @@
     (test-make-winning-set
      :tiles rs:*kokushi-musou-tiles* :winning-tile tile :win-from :tsumo
      :forbidden-sets
-     (list (rs:shiisan-puutaa
+     (list (rs:antoi tile)
+           (rs:shiisan-puutaa
             tile
             (remove tile rs:*kokushi-musou-tiles* :test #'rt:tile=)))
      :expected-set (rs:closed-kokushi-musou tile)
@@ -1049,14 +1050,17 @@
 
 (define-test try-make-set-open-kokushi-musou
   (do-all-other-players (player)
-    (dolist (tile rs:*kokushi-musou-tiles*)
-      (test-make-winning-set
-       :tiles rs:*kokushi-musou-tiles*
-       :winning-tile tile :win-from player
-       :forbidden-sets '()
-       :expected-set (rs:open-kokushi-musou tile tile player)
-       :expected-tiles '()
-       :expected-winning-tile '()))))
+    (dolist (pair-tile rs:*kokushi-musou-tiles*)
+      (dolist (open-tile rs:*kokushi-musou-tiles*)
+        (let ((free-tiles (cons pair-tile
+                                (remove open-tile rs:*kokushi-musou-tiles*
+                                        :count 1 :test #'rt:tile=))))
+          (test-make-winning-set
+           :tiles free-tiles :winning-tile open-tile :win-from player
+           :forbidden-sets '()
+           :expected-set (rs:open-kokushi-musou pair-tile open-tile player)
+           :expected-tiles '()
+           :expected-winning-tile '()))))))
 
 (define-test try-make-set-shiisan-puutaa
   (test-make-winning-set
