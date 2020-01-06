@@ -169,6 +169,72 @@
       (true (find ordering actual-orderings :test #'rh:ordering=)
             "~S not found in:~%~S" ordering expected-orderings))))
 
+;;; Ordering tests - tatsumaki with locked sets
+
+(define-test find-orderings-tatsumaki-locked-sets-tsumo
+  (let ((locked-sets (list (rs:minjun [3p] [3p] :kamicha)
+                           (rs:daiminkan [NW] :toimen))))
+    (flet ((do-test (tile &rest orderings)
+             (apply #'test-orderings
+                    (make-test-hand
+                     :class 'rh:open-tsumo-hand
+                     :free-tiles (rt:read-tile-list-from-string "4445666s")
+                     :locked-sets locked-sets
+                     :winning-tile tile)
+                    orderings)))
+      (do-test [3s]
+        (list (rs:anjun [3s])
+              (list* (rs:antoi [4s]) (rs:ankou [6s]) locked-sets)))
+      (do-test [4s]
+        (list (rs:ankou [4s])
+              (list* (rs:anjun [4s]) (rs:antoi [6s]) locked-sets))
+        (list (rs:anjun [4s])
+              (list* (rs:ankou [4s]) (rs:antoi [6s]) locked-sets)))
+      (do-test [5s]
+        (list (rs:antoi [5s])
+              (list* (rs:ankou [4s]) (rs:ankou [6s]) locked-sets)))
+      (do-test [6s]
+        (list (rs:anjun [4s])
+              (list* (rs:antoi [4s]) (rs:ankou [6s]) locked-sets))
+        (list (rs:ankou [6s])
+              (list* (rs:antoi [4s]) (rs:anjun [4s]) locked-sets)))
+      (do-test [7s]
+        (list (rs:anjun [5s])
+              (list* (rs:ankou [4s]) (rs:antoi [6s]) locked-sets))))))
+
+(define-test find-orderings-tatsumaki-locked-sets-ron
+  (let ((locked-sets (list (rs:minjun [3p] [3p] :kamicha)
+                           (rs:daiminkan [NW] :toimen))))
+    (do-all-other-players (player)
+      (flet ((do-test (tile &rest orderings)
+               (apply #'test-orderings
+                      (make-test-hand
+                       :class 'rh:open-ron-hand
+                       :free-tiles (rt:read-tile-list-from-string "4445666s")
+                       :locked-sets locked-sets
+                       :winning-tile tile
+                       :taken-from player)
+                      orderings)))
+        (do-test [3s]
+          (list (rs:minjun [3s] [3s] player)
+                (list* (rs:antoi [4s]) (rs:ankou [6s]) locked-sets)))
+        (do-test [4s]
+          (list (rs:minkou [4s] player)
+                (list* (rs:anjun [4s]) (rs:antoi [6s]) locked-sets))
+          (list (rs:minjun [4s] [4s] player)
+                (list* (rs:ankou [4s]) (rs:antoi [6s]) locked-sets)))
+        (do-test [5s]
+          (list (rs:mintoi [5s] player)
+                (list* (rs:ankou [4s]) (rs:ankou [6s]) locked-sets)))
+        (do-test [6s]
+          (list (rs:minjun [4s] [6s] player)
+                (list* (rs:antoi [4s]) (rs:ankou [6s]) locked-sets))
+          (list (rs:minkou [6s] player)
+                (list* (rs:antoi [4s]) (rs:anjun [4s]) locked-sets)))
+        (do-test [7s]
+          (list (rs:minjun [5s] [7s] player)
+                (list* (rs:ankou [4s]) (rs:antoi [6s]) locked-sets)))))))
+
 ;;; Ordering tests - chuuren poutou
 
 (define-test find-orderings-chuuren-poutou-tsumo
@@ -529,5 +595,3 @@
    (make-test-hand :winning-tile [5m]
                    :free-tiles rs:*kokushi-musou-tiles*)
    (list (rs:shiisuu-puutaa (cons [5m] rs:*kokushi-musou-tiles*)))))
-
-;;; TODO tests with locked sets in the hand

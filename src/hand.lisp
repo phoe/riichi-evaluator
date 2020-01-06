@@ -356,7 +356,8 @@
       (destructuring-bind (winning-set remaining-tiles) combination
         (let ((set-combinations (find-sets-in-free-tiles remaining-tiles)))
           (dolist (free-sets set-combinations)
-            (push (list winning-set free-sets) possible-orderings)))))
+            (push (list winning-set (append free-sets (locked-sets hand)))
+                  possible-orderings)))))
     (if include-non-mahjong-orderings-p
         possible-orderings
         (remove-if-not #'mahjong-hand-p possible-orderings
