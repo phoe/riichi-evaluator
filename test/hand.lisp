@@ -77,7 +77,7 @@
   (fail (make-test-hand :situations :keyword) 'rh:invalid-hand-element)
   (fail (make-test-hand :situations '(42)) 'rh:invalid-hand-element)
   (fail (make-test-hand :situations '((42))) 'rh:invalid-hand-element)
-  (fail (make-test-hand :class 'rh:closed-ron-hand :losing-player :keyword)
+  (fail (make-test-hand :class 'rh:closed-ron-hand :taken-from :keyword)
       'rh:invalid-hand-element)
   (fail (make-test-hand
          :free-tiles (rt:read-tile-list-from-string "11112345678999p"))
@@ -104,10 +104,10 @@
 (define-test hand-positive
   (dolist (args '((:class rh:closed-tsumo-hand)
                   (:class rh:closed-ron-hand
-                   :losing-player :toimen)
+                   :taken-from :toimen)
                   (:class rh:open-tsumo-hand)
                   (:class rh:open-ron-hand
-                   :losing-player :toimen)))
+                   :taken-from :toimen)))
     (let ((expected-hand
             '([1p] [1p] [1p] [2p] [3p] [4p] [5p]
               [6p] [7p] [8p] [9p] [9p] [9p]))
@@ -129,11 +129,11 @@
         (rh:closed-tsumo-hand
          (is eq '() (rh:ura-dora-list hand)))
         (rh:closed-ron-hand
-         (is eq :toimen (rh:losing-player hand))
+         (is eq :toimen (rh:taken-from hand))
          (is eq '() (rh:ura-dora-list hand)))
         (rh:open-tsumo-hand)
         (rh:open-ron-hand
-         (is eq :toimen (rh:losing-player hand)))))))
+         (is eq :toimen (rh:taken-from hand)))))))
 
 ;;; Ordering finder
 
@@ -391,7 +391,7 @@
                                        :test #'rt:tile= :count 1)))
                (apply #'test-orderings
                       (make-test-hand :class 'rh:closed-ron-hand
-                                      :winning-tile tile:free-tiles new-tiles
+                                      :winning-tile tile :free-tiles new-tiles
                                       :taken-from player)
                       orderings))))
       (do-test [2p]

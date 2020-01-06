@@ -40,7 +40,7 @@
    #:free-tiles #:dora-list #:situations #:hand-total-visible-tiles
    #:validate-situation
    #:tsumo-hand #:ron-hand #:open-hand #:closed-hand
-   #:ura-dora-list #:losing-player
+   #:ura-dora-list #:taken-from
    ;; Concrete classes
    #:open-tsumo-hand #:open-ron-hand #:closed-tsumo-hand #:closed-ron-hand
    ;; Ordering finder
