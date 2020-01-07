@@ -138,6 +138,7 @@
 
 ;;; Hand
 
+;;; TODO: implement the count of riichi sticks and honba.
 (p:define-protocol-class hand ()
   ((%prevailing-wind :accessor prevailing-wind :initarg :prevailing-wind)
    (%seat-wind :accessor seat-wind :initarg :seat-wind)

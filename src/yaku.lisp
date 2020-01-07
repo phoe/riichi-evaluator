@@ -31,15 +31,19 @@
   (:local-nicknames (#:a #:alexandria)
                     (#:p #:protest/base)
                     (#:nr #:named-readtables))
-  (:export))
+  (:export
+   #:chiitoitsu-p #:set-wait #:pinfu-p
+   #:count-fu))
 
 (in-package #:riichi-evaluator.yaku)
 
 (nr:in-readtable :riichi-evaluator)
 
+;;; Fu counter
+
 ;;; TODO: maybe move some of this to scoring.lisp
 
-(defun chiitoi-p (ordering)
+(defun chiitoitsu-p (ordering)
   (and (typep (first ordering) 'toitsu)
        (every (a:rcurry #'typep 'antoi) (second ordering))))
 
@@ -49,10 +53,10 @@
          (winning-rank (rank tile)))
     (flet ((other-ranks-are (&rest ranks)
              (null (set-difference other-ranks ranks))))
-      (cond ((and (typep set 'koutsu) (tile= (same-tile-set-tile set) tile))
-             :shanpon)
-            ((and (typep set 'toitsu) (tile= (same-tile-set-tile set) tile))
+      (cond ((and (typep set 'toitsu) (tile= (same-tile-set-tile set) tile))
              :tanki)
+            ((and (typep set 'koutsu) (tile= (same-tile-set-tile set) tile))
+             :shanpon)
             ((and (typep set 'shuntsu)
                   (or (and (= 3 winning-rank) (other-ranks-are 1 2))
                       (and (= 7 winning-rank) (other-ranks-are 8 9))))
@@ -72,16 +76,18 @@
          (eq :ryanmen (set-wait winning-set winning-tile)))))
 
 (defun count-fu (hand ordering)
-  (if (chiitoi-p ordering)
+  (if (chiitoitsu-p ordering)
       '((:chiitoitsu 25))
       (destructuring-bind (winning-set other-sets) ordering
         (let* ((fu '())
                (winning-tile (winning-tile hand))
                (all-sets (cons winning-set other-sets)))
           (flet ((collect (x) (push x fu)))
+            ;; Fuutei and menzen-kafu.
             (collect '(20 :fuutei))
             (when (typep hand 'closed-ron-hand)
               (collect '(10 :menzen-kafu)))
+            ;; Fu from sets.
             (dolist (set all-sets)
               (typecase set
                 (minkou (collect (if (simple-p (same-tile-set-tile set))
@@ -96,6 +102,7 @@
                 (ankan (collect (if (simple-p (same-tile-set-tile set))
                                     `(16 :chunchanhai-ankan ,set)
                                     `(32 :yaochuuhai-ankan ,set))))))
+            ;; Fu from toitsu of dragon/active wind.
             (let* ((toitsu (find-if (a:rcurry #'typep 'toitsu) all-sets))
                    (tile (same-tile-set-tile toitsu)))
               (when (dragon-p tile)
@@ -104,14 +111,18 @@
                 (collect '(2 :bakaze-toitsu)))
               (when (and (wind-p tile) (eq (kind tile) (seat-wind hand)))
                 (collect '(2 :jikaze-toitsu))))
+            ;; Fu from difficult waits.
             (let ((wait (set-wait winning-set winning-tile)))
               (case wait
                 (:kanchan (collect '(2 :kanchan)))
                 (:penchan (collect '(2 :penchan)))
                 (:tanki  (collect '(2 :tanki)))))
+            ;; Fu from tsumo/open pinfu.
             (let ((pinfu-p (pinfu-p ordering winning-tile)))
               (when (and (not pinfu-p) (typep hand 'tsumo-hand))
                 (collect '(2 :tsumo)))
               (when (and pinfu-p (typep hand 'open-hand))
                 (collect '(2 :open-pinfu))))
             fu)))))
+
+;;; Yaku
