@@ -93,6 +93,7 @@
           (collect '(2 :bakaze-toitsu)))
         (when (eq (kind tile) (seat-wind hand))
           (collect '(2 :jikaze-toitsu))))
+      ;; TODO: add fu for waits here.
       (let ((pinfu-p (pinfu-p ordering (winning-tile hand))))
         (when (and (not pinfu-p) (typep hand 'tsumo-hand))
           (collect '(2 :tsumo)))
