@@ -25,6 +25,7 @@
                     (#:rt #:riichi-evaluator.tiles)
                     (#:rs #:riichi-evaluator.set)
                     (#:rh #:riichi-evaluator.hand)
+                    (#:ry #:riichi-evaluator.yaku)
                     (#:nr #:named-readtables)
                     (#:p #:protest/base)
                     (#:a #:alexandria))
