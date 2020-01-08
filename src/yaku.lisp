@@ -106,11 +106,11 @@
             (let* ((toitsu (find-if (a:rcurry #'typep 'toitsu) all-sets))
                    (tile (same-tile-set-tile toitsu)))
               (when (dragon-p tile)
-                (collect '(2 :sangenpai-toitsu)))
+                (collect '(2 :sangenpai-atama)))
               (when (and (wind-p tile) (eq (kind tile) (prevailing-wind hand)))
-                (collect '(2 :bakaze-toitsu)))
+                (collect '(2 :bakaze-atama)))
               (when (and (wind-p tile) (eq (kind tile) (seat-wind hand)))
-                (collect '(2 :jikaze-toitsu))))
+                (collect '(2 :jikaze-atama))))
             ;; Fu from difficult waits.
             (let ((wait (set-wait winning-set winning-tile)))
               (case wait
@@ -168,7 +168,7 @@
 ;;; TODO: Suukantsu
 ;;; TODO: Tenhou
 ;;; TODO: Chiihou
-;;; TODO: Tenhou
+;;; TODO: Renhou
 ;;; TODO: Sanrenkou
 ;;; TODO: Iishoku sanjun
 ;;; TODO: Shiisan puutaa
