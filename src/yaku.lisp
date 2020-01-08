@@ -126,3 +126,70 @@
             fu)))))
 
 ;;; Yaku
+
+;;; TODO: Riichi
+;;; TODO: Ippatsu
+;;; TODO: Double riichi
+;;; TODO: Menzenchin tsumohou
+;;; TODO: Tanyao
+;;; TODO: Pinfu
+;;; TODO: Iipeikou
+;;; TODO: Ikkitsuukan
+;;; TODO: Yakuhai (x7)
+;;; TODO: Sanshoku doujun
+;;; TODO: Sanshoku doukou
+;;; TODO: Toitoihou
+;;; TODO: Sanankou
+;;; TODO: Sankantsu
+;;; TODO: Honchantaiyaochuu
+;;; TODO: Junchantaiyaochuu
+;;; TODO: Ryanpeikou
+;;; TODO: Shousangen
+;;; TODO: Honroutou
+;;; TODO: Honiisou
+;;; TODO: Chiniisou
+;;; TODO: Chiitoitsu
+;;; TODO: Rinshan kaihou
+;;; TODO: Haitei raoyue
+;;; TODO: Houtei raoyui
+;;; TODO: Chankan
+;;; TODO: Kokushi musou
+;;; TODO: Kokushi musou juusan menmachi
+;;; TODO: Daisangen
+;;; TODO: Suuankou
+;;; TODO: Suuankou tanki
+;;; TODO: Shoosuushii
+;;; TODO: Daisuushii
+;;; TODO: Tsuuiisou
+;;; TODO: Ryuuiisou
+;;; TODO: Chinroutou
+;;; TODO: Chuuren poutou
+;;; TODO: Junsei chuuren poutou
+;;; TODO: Suukantsu
+;;; TODO: Tenhou
+;;; TODO: Chiihou
+;;; TODO: Tenhou
+;;; TODO: Sanrenkou
+;;; TODO: Iishoku sanjun
+;;; TODO: Shiisan puutaa
+;;; TODO: Shousharin
+;;; TODO: Kinkei dokuritsu
+;;; TODO: Nagashi mangan
+;;; TODO: Open riichi
+;;; TODO: Otakaze sankou
+;;; TODO: Uumensai
+;;; TODO: Kinmonkyou
+;;; TODO: Tsubame gaeshi
+;;; TODO: Suurenkou
+;;; TODO: Iishoku yonjun
+;;; TODO: Shiisuu puutaa
+;;; TODO: Daichiisei
+;;; TODO: Daisharin
+;;; TODO: Beni kujaku
+;;; TODO: Paarenchan
+;;; TODO: Go zoku kyouwa
+;;; TODO: Daikinmonkyou
+;;; TODO: Hyakuman goku
+;;; TODO: Ao no doumon
+;;; TODO: Kaachou fuugetsu
+;;; TODO: Fuuka setsugetsu
