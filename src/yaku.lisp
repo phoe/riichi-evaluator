@@ -41,8 +41,6 @@
 
 ;;; Fu counter
 
-;;; TODO: maybe move some of this to scoring.lisp
-
 (defun chiitoitsu-p (ordering)
   (and (typep (first ordering) 'toitsu)
        (every (a:rcurry #'typep 'antoi) (second ordering))))
@@ -124,6 +122,139 @@
               (when (and pinfu-p (typep hand 'open-hand))
                 (collect '(2 :open-pinfu))))
             fu)))))
+
+;;; Situations
+
+(define-condition invalid-situation (invalid-hand simple-condition)
+  ((%situation :reader invalid-situation-situation :initarg :situation))
+  (:default-initargs
+   :situation (a:required-argument :situation)
+   :format-control "No reason given.")
+  (:report
+   (lambda (condition stream)
+     (let ((situation (invalid-situation-situation condition)))
+       (format stream "Invalid situation ~S for hand ~S:~%~A"
+               (if (and (consp situation) (null (cdr situation)))
+                   (car situation)
+                   situation)
+               (invalid-hand-hand condition)
+               (apply #'format nil
+                      (simple-condition-format-control condition)
+                      (simple-condition-format-arguments condition)))))))
+
+(defun invalid-situation (hand situation args format-control &rest format-args)
+  (error 'invalid-situation :hand hand :situation (cons situation args)
+                            :format-control format-control
+                            :format-args format-args))
+
+(define-condition invalid-dora-list-lengths (invalid-hand)
+  ((%dora-list :reader dora-list :initarg :dora-list)
+   (%ura-dora-list :reader ura-dora-list :initarg :ura-dora-list))
+  (:default-initargs
+   :dora-list (a:required-argument :dora-list)
+   :ura-dora-list (a:required-argument :ura-dora-list))
+  (:report
+   (lambda (condition stream)
+     (format stream "The dora list ~S and ura dora list ~S for hand ~S ~
+                       are not of the same length."
+             (dora-list condition)
+             (ura-dora-list condition)
+             (invalid-hand-hand condition)))))
+
+(defun check-dora-ura-dora-list-length (hand)
+  (let ((dora-list-length (length (dora-list hand)))
+        (ura-dora-list-length (length (ura-dora-list hand))))
+    (unless (= dora-list-length ura-dora-list-length)
+      (error 'invalid-dora-list-lengths
+             :hand hand
+             :dora-list (dora-list hand)
+             :ura-dora-list (ura-dora-list hand)))))
+
+(defmacro define-situation (name (hand situation args) &body body)
+  (check-type name (or null keyword))
+  `(defmethod validate-situation progn
+       (,hand ,(if name `(,situation (eql ,name)) situation) &rest ,args)
+     ,@body))
+
+(define-situation nil (hand situation args)
+  (when (null (compute-applicable-methods
+               #'validate-situation (list* hand situation args)))
+    (invalid-situation hand situation args "Unknown situation ~S." situation)))
+
+;;; Yaku
+
+(defun compute-yaku (hand ordering)
+  (let* ((yaku-list (compute-all-yaku hand ordering))
+         (incompatible-yaku (compute-incompatible-yaku yaku-list)))
+    (set-difference yaku-list incompatible-yaku)))
+
+(defgeneric compute-all-yaku (hand ordering)
+  (:method-combination chained-append))
+
+(defgeneric compute-incompatible-yaku (yaku-list)
+  (:method-combination chained-append))
+
+(defmacro define-yaku (name (hand ordering) &body body)
+  (check-type name keyword)
+  `(defmethod compute-all-yaku ,name (,hand ,ordering)
+     ,@body))
+
+;;; Riichi
+
+(define-situation :riichi (hand situation args)
+  (check-dora-ura-dora-list-length hand)
+  (when (typep hand 'open-hand)
+    (invalid-situation hand situation args
+                       "Riichi cannot be declared on an open hand."))
+  (unless (null args)
+    (invalid-situation hand situation args
+                       "Riichi does not accept arguments.")))
+
+(define-yaku :riichi (hand ordering)
+  (when (member :riichi (situations hand) :key #'a:ensure-car)
+    '(:riichi)))
+
+;;; Double riichi
+
+(define-situation :double-riichi (hand situation args)
+  (unless (member :riichi (situations hand))
+    (invalid-situation hand situation args
+                       "Double riichi cannot occur without riichi."))
+  (unless (null args)
+    (invalid-situation hand situation args
+                       "Double riichi does not accept arguments.")))
+
+(define-yaku :double-riichi (hand ordering)
+  (when (member :double-riichi (situations hand) :key #'a:ensure-car)
+    '(:double-riichi)))
+
+;;; Open riichi
+
+(define-situation :open-riichi (hand situation args)
+  (unless (member :riichi (situations hand))
+    (invalid-situation hand situation args
+                       "Open riichi cannot occur without riichi."))
+  (unless (null args)
+    (invalid-situation hand situation args
+                       "Open riichi does not accept arguments.")))
+
+(define-yaku :open-riichi (hand ordering)
+  (when (member :open-riichi (situations hand) :key #'a:ensure-car)
+    '(:open-riichi)))
+
+;;; Ippatsu
+
+(define-situation :ippatsu (hand situation args)
+  (unless (member :riichi (situations hand))
+    (invalid-situation hand situation args
+                       "Ippatsu cannot occur without riichi."))
+  (unless (null args)
+    (invalid-situation hand situation args
+                       "Ippatsu does not accept arguments.")))
+
+(define-yaku :ippatsu (hand ordering)
+  (when (member :ippatsu (situations hand) :key #'a:ensure-car)
+    '(:ippatsu)))
 
 ;;; Yaku
 

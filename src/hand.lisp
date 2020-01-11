@@ -31,7 +31,7 @@
                     (#:p #:protest/base))
   (:export
    ;; Conditions
-   #:invalid-hand #:invalid-hand-element
+   #:invalid-hand #:invalid-hand-hand #:invalid-hand-element
    #:invalid-dora-list-length #:invalid-situation
    #:invalid-tile-count #:invalid-same-tile-count #:minjun-invalid-meld
    #:closed-locked-set #:open-hand-no-open-sets

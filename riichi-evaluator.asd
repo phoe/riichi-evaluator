@@ -43,5 +43,3 @@
   (test-op (o c)
            (symbol-call '#:parachute '#:test :riichi-evaluator.test
                         :report (find-symbol "INTERACTIVE" "PARACHUTE"))))
-
-
