@@ -187,10 +187,16 @@
 (defgeneric compute-all-yaku (hand ordering)
   (:method-combination chained-append))
 
-(defmacro define-yaku (name (hand ordering) &body body)
+(defmacro define-yaku (name (hand &key
+                                    (ordering (gensym "ORDERING"))
+                                    (sets (gensym "SETS")))
+                       &body body)
   (check-type name keyword)
   `(defmethod compute-all-yaku ,name (,hand ,ordering)
-     (when (progn ,@body)
+     (declare (ignorable ,hand ,ordering))
+     (when (let ((,sets (cons (first ,ordering) (second ,ordering))))
+             (declare (ignorable ,sets))
+             ,@body)
        '(,name))))
 
 (defgeneric compute-incompatible-yaku (yaku-list)
@@ -212,7 +218,7 @@
     (invalid-situation hand situation args
                        "Riichi does not accept arguments.")))
 
-(define-yaku :riichi (hand ordering)
+(define-yaku :riichi (hand)
   (member :riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Double riichi
@@ -225,7 +231,7 @@
     (invalid-situation hand situation args
                        "Double riichi does not accept arguments.")))
 
-(define-yaku :double-riichi (hand ordering)
+(define-yaku :double-riichi (hand)
   (member :double-riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Ippatsu
@@ -238,17 +244,17 @@
     (invalid-situation hand situation args
                        "Ippatsu does not accept arguments.")))
 
-(define-yaku :ippatsu (hand ordering)
+(define-yaku :ippatsu (hand)
   (member :ippatsu (situations hand) :key #'a:ensure-car))
 
 ;;; Menzenchin tsumohou
 
-(define-yaku :menzenchin-tsumohou (hand ordering)
+(define-yaku :menzenchin-tsumohou (hand)
   (typep hand 'closed-tsumo-hand))
 
 ;;; Tanyao
 
-(define-yaku :tanyao (hand ordering)
+(define-yaku :tanyao (hand)
   (and (simple-p (winning-tile hand))
        (every #'simple-p (free-tiles hand))
        (every #'simple-p (a:mappend #'tiles (locked-sets hand)))))
@@ -260,23 +266,21 @@
 
 ;;; Iipeikou
 
-(define-yaku :iipeikou (hand ordering)
+(define-yaku :iipeikou (hand :sets sets)
   (and (typep hand 'closed-hand)
-       (loop with sets = (cons (first ordering) (second ordering))
-             for set in sets
+       (loop for set in sets
              when (and (typep set 'anjun) (= 2 (count set sets :test #'set=)))
                return t)))
 
 ;;; Ikkitsuukan
 
-(define-yaku :ikkitsuukan (hand ordering)
+(define-yaku :ikkitsuukan (hand :sets sets)
   (flet ((make-pred (rank suit)
            (lambda (x) (and (typep x 'shuntsu)
                             (let ((tile (shuntsu-lowest-tile x)))
                               (eql suit (suit tile))
                               (= rank (rank tile)))))))
-    (loop with sets = (cons (first ordering) (second ordering))
-          for suit in *suits*
+    (loop for suit in *suits*
             thereis (and (find-if (make-pred 1 suit) sets)
                          (find-if (make-pred 4 suit) sets)
                          (find-if (make-pred 7 suit) sets)))))
@@ -285,14 +289,14 @@
 
 (macrolet ((bakaze (wind)
              `(define-yaku ,(a:format-symbol :keyword "BAKAZE-~A" wind)
-                  (hand ordering)
+                  (hand :sets sets)
                 (and (eq ,wind (prevailing-wind hand))
                      (find-if (lambda (x)
                                 (and (typep x '(or kantsu koutsu))
                                      (tile= (same-tile-set-tile x)
                                             (make-instance 'honor-tile
                                                            :kind ,wind))))
-                              (cons (first ordering) (second ordering))))))
+                              sets))))
            (make () `(progn ,@(mapcar (lambda (x) `(bakaze ,x)) *winds*))))
   (make))
 
@@ -300,14 +304,14 @@
 
 (macrolet ((jikaze (wind)
              `(define-yaku ,(a:format-symbol :keyword "JIKAZE-~A" wind)
-                  (hand ordering)
+                  (hand :sets sets)
                 (and (eq ,wind (seat-wind hand))
                      (find-if (lambda (x)
                                 (and (typep x '(or kantsu koutsu))
                                      (tile= (same-tile-set-tile x)
                                             (make-instance 'honor-tile
                                                            :kind ,wind))))
-                              (cons (first ordering) (second ordering))))))
+                              sets))))
            (make () `(progn ,@(mapcar (lambda (x) `(jikaze ,x)) *winds*))))
   (make))
 
@@ -315,22 +319,36 @@
 
 (macrolet ((yakuhai (dragon)
              `(define-yaku ,(a:format-symbol :keyword "YAKUHAI-~A" dragon)
-                  (hand ordering)
+                  (hand :sets sets)
                 (find-if (lambda (x)
                            (and (typep x '(or kantsu koutsu))
                                 (tile= (same-tile-set-tile x)
                                        (make-instance 'honor-tile
                                                       :kind ,dragon))))
-                         (cons (first ordering) (second ordering)))))
+                         sets)))
            (make () `(progn ,@(mapcar (lambda (x) `(yakuhai ,x))
                                       '(:haku :hatsu :chun)))))
   (make))
 
 ;;; TODO: Sanshoku doujun
 ;;; TODO: Sanshoku doukou
-;;; TODO: Toitoihou
-;;; TODO: Sanankou
-;;; TODO: Sankantsu
+
+;;; Toitoihou
+
+(define-yaku :toitoihou (hand :sets sets)
+  (and (= 1 (count-if (a:rcurry #'typep 'toitsu) sets))
+       (= 4 (count-if (a:rcurry #'typep '(or koutsu kantsu)) sets))))
+
+;;; Sanankou
+
+(define-yaku :sanankou (hand :sets sets)
+  (and (= 3 (count-if (a:rcurry #'typep '(or ankou ankan)) sets))))
+
+;;; Sankantsu
+
+(define-yaku :sankantsu (hand :sets sets)
+  (and (= 3 (count-if (a:rcurry #'typep 'kantsu) sets))))
+
 ;;; TODO: Honchantaiyaochuu
 ;;; TODO: Junchantaiyaochuu
 ;;; TODO: Ryanpeikou
@@ -338,7 +356,12 @@
 ;;; TODO: Honroutou
 ;;; TODO: Honiisou
 ;;; TODO: Chiniisou
-;;; TODO: Chiitoitsu
+
+;;; Chiitoitsu
+
+(define-yaku :chiitoitsu (hand :ordering ordering)
+  (chiitoitsu-p ordering))
+
 ;;; TODO: Rinshan kaihou
 ;;; TODO: Haitei raoyue
 ;;; TODO: Houtei raoyui
