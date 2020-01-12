@@ -70,7 +70,8 @@
 (defun pinfu-p (ordering winning-tile)
   (destructuring-bind (winning-set other-sets) ordering
     (and (typep winning-set 'shuntsu)
-         (every (a:rcurry #'typep '(or antoi anjun)) other-sets)
+         (= 1 (count-if (a:rcurry #'typep 'antoi) other-sets))
+         (= 3 (count-if (a:rcurry #'typep 'anjun) other-sets))
          (eq :ryanmen (set-wait winning-set winning-tile)))))
 
 (defun count-fu (hand ordering)
@@ -183,21 +184,22 @@
 
 ;;; Yaku
 
-(defun compute-yaku (hand ordering)
-  (let* ((yaku-list (compute-all-yaku hand ordering))
-         (incompatible-yaku (compute-incompatible-yaku yaku-list)))
-    (set-difference yaku-list incompatible-yaku)))
-
 (defgeneric compute-all-yaku (hand ordering)
-  (:method-combination chained-append))
-
-(defgeneric compute-incompatible-yaku (yaku-list)
   (:method-combination chained-append))
 
 (defmacro define-yaku (name (hand ordering) &body body)
   (check-type name keyword)
   `(defmethod compute-all-yaku ,name (,hand ,ordering)
-     ,@body))
+     (when (progn ,@body)
+       '(,name))))
+
+(defgeneric compute-incompatible-yaku (yaku-list)
+  (:method-combination chained-append))
+
+(defun compute-yaku (hand ordering)
+  (let* ((yaku-list (compute-all-yaku hand ordering))
+         (incompatible-yaku (compute-incompatible-yaku yaku-list)))
+    (set-difference yaku-list incompatible-yaku)))
 
 ;;; Riichi
 
@@ -211,8 +213,7 @@
                        "Riichi does not accept arguments.")))
 
 (define-yaku :riichi (hand ordering)
-  (when (member :riichi (situations hand) :key #'a:ensure-car)
-    '(:riichi)))
+  (member :riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Double riichi
 
@@ -225,22 +226,7 @@
                        "Double riichi does not accept arguments.")))
 
 (define-yaku :double-riichi (hand ordering)
-  (when (member :double-riichi (situations hand) :key #'a:ensure-car)
-    '(:double-riichi)))
-
-;;; Open riichi
-
-(define-situation :open-riichi (hand situation args)
-  (unless (member :riichi (situations hand))
-    (invalid-situation hand situation args
-                       "Open riichi cannot occur without riichi."))
-  (unless (null args)
-    (invalid-situation hand situation args
-                       "Open riichi does not accept arguments.")))
-
-(define-yaku :open-riichi (hand ordering)
-  (when (member :open-riichi (situations hand) :key #'a:ensure-car)
-    '(:open-riichi)))
+  (member :double-riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Ippatsu
 
@@ -253,20 +239,93 @@
                        "Ippatsu does not accept arguments.")))
 
 (define-yaku :ippatsu (hand ordering)
-  (when (member :ippatsu (situations hand) :key #'a:ensure-car)
-    '(:ippatsu)))
+  (member :ippatsu (situations hand) :key #'a:ensure-car))
 
-;;; Yaku
+;;; Menzenchin tsumohou
 
-;;; TODO: Riichi
-;;; TODO: Ippatsu
-;;; TODO: Double riichi
-;;; TODO: Menzenchin tsumohou
-;;; TODO: Tanyao
-;;; TODO: Pinfu
-;;; TODO: Iipeikou
-;;; TODO: Ikkitsuukan
-;;; TODO: Yakuhai (x7)
+(define-yaku :menzenchin-tsumohou (hand ordering)
+  (typep hand 'closed-tsumo-hand))
+
+;;; Tanyao
+
+(define-yaku :tanyao (hand ordering)
+  (and (simple-p (winning-tile hand))
+       (every #'simple-p (free-tiles hand))
+       (every #'simple-p (a:mappend #'tiles (locked-sets hand)))))
+
+;;; Pinfu
+
+(define-yaku :pinfu (hand ordering)
+  (pinfu-p ordering (winning-tile hand)))
+
+;;; Iipeikou
+
+(define-yaku :iipeikou (hand ordering)
+  (and (typep hand 'closed-hand)
+       (loop with sets = (cons (first ordering) (second ordering))
+             for set in sets
+             when (and (typep set 'anjun) (= 2 (count set sets :test #'set=)))
+               return t)))
+
+;;; Ikkitsuukan
+
+(define-yaku :ikkitsuukan (hand ordering)
+  (flet ((make-pred (rank suit)
+           (lambda (x) (and (typep x 'shuntsu)
+                            (let ((tile (shuntsu-lowest-tile x)))
+                              (eql suit (suit tile))
+                              (= rank (rank tile)))))))
+    (loop with sets = (cons (first ordering) (second ordering))
+          for suit in *suits*
+            thereis (and (find-if (make-pred 1 suit) sets)
+                         (find-if (make-pred 4 suit) sets)
+                         (find-if (make-pred 7 suit) sets)))))
+
+;;; Bakaze
+
+(macrolet ((bakaze (wind)
+             `(define-yaku ,(a:format-symbol :keyword "BAKAZE-~A" wind)
+                  (hand ordering)
+                (and (eq ,wind (prevailing-wind hand))
+                     (find-if (lambda (x)
+                                (and (typep x '(or kantsu koutsu))
+                                     (tile= (same-tile-set-tile x)
+                                            (make-instance 'honor-tile
+                                                           :kind ,wind))))
+                              (cons (first ordering) (second ordering))))))
+           (make () `(progn ,@(mapcar (lambda (x) `(bakaze ,x)) *winds*))))
+  (make))
+
+;;; Jikaze
+
+(macrolet ((jikaze (wind)
+             `(define-yaku ,(a:format-symbol :keyword "JIKAZE-~A" wind)
+                  (hand ordering)
+                (and (eq ,wind (seat-wind hand))
+                     (find-if (lambda (x)
+                                (and (typep x '(or kantsu koutsu))
+                                     (tile= (same-tile-set-tile x)
+                                            (make-instance 'honor-tile
+                                                           :kind ,wind))))
+                              (cons (first ordering) (second ordering))))))
+           (make () `(progn ,@(mapcar (lambda (x) `(jikaze ,x)) *winds*))))
+  (make))
+
+;;; Sangenpai
+
+(macrolet ((yakuhai (dragon)
+             `(define-yaku ,(a:format-symbol :keyword "YAKUHAI-~A" dragon)
+                  (hand ordering)
+                (find-if (lambda (x)
+                           (and (typep x '(or kantsu koutsu))
+                                (tile= (same-tile-set-tile x)
+                                       (make-instance 'honor-tile
+                                                      :kind ,dragon))))
+                         (cons (first ordering) (second ordering)))))
+           (make () `(progn ,@(mapcar (lambda (x) `(yakuhai ,x))
+                                      '(:haku :hatsu :chun)))))
+  (make))
+
 ;;; TODO: Sanshoku doujun
 ;;; TODO: Sanshoku doukou
 ;;; TODO: Toitoihou
@@ -299,6 +358,7 @@
 ;;; TODO: Suukantsu
 ;;; TODO: Tenhou
 ;;; TODO: Chiihou
+
 ;;; TODO: Renhou
 ;;; TODO: Sanrenkou
 ;;; TODO: Iishoku sanjun
@@ -306,7 +366,20 @@
 ;;; TODO: Shousharin
 ;;; TODO: Kinkei dokuritsu
 ;;; TODO: Nagashi mangan
-;;; TODO: Open riichi
+
+;;; Open riichi
+
+(define-situation :open-riichi (hand situation args)
+  (unless (member :riichi (situations hand))
+    (invalid-situation hand situation args
+                       "Open riichi cannot occur without riichi."))
+  (unless (null args)
+    (invalid-situation hand situation args
+                       "Open riichi does not accept arguments.")))
+
+(define-yaku :open-riichi (hand ordering)
+  (member :open-riichi (situations hand) :key #'a:ensure-car))
+
 ;;; TODO: Otakaze sankou
 ;;; TODO: Uumensai
 ;;; TODO: Kinmonkyou

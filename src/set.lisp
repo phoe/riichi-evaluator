@@ -27,7 +27,8 @@
   (:local-nicknames (#:a #:alexandria)
                     (#:nr #:named-readtables)
                     (#:p #:protest/base)
-                    (#:m #:closer-mop))
+                    (#:m #:closer-mop)
+                    (#:mu #:moptilities))
   (:shadow #:set)
   (:export
    ;; Variables
@@ -457,6 +458,8 @@
 (defmethod set= ((set-1 shiisuu-puutaa) (set-2 shiisuu-puutaa))
   (and (eq (class-of set-1) (class-of set-2))
        (tile-list= (single-tiles set-1) (single-tiles set-2))))
+
+(map nil #'mu:finalize-class-if-necessary (mu:subclasses 'set))
 
 ;;; Set printer
 

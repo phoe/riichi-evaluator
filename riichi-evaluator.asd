@@ -31,11 +31,13 @@
   :depends-on (#:alexandria
                #:named-readtables
                #:protest/base
-               #:closer-mop)
+               #:closer-mop
+               #:moptilities)
   :components ((:file "constants")
                (:file "tiles")
                (:file "set")
                (:file "hand")
+               (:file "yaku")
                ;;(:file "mah-eval")
                )
   :in-order-to ((test-op (load-op :riichi-evaluator.test)))
