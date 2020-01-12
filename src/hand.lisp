@@ -294,9 +294,9 @@
   (:method (sets) nil))
 
 (defmethod mahjong-hand-p :standard (sets)
-  (and (is-number-sets-of-type-p 4 'standard-set sets)
+  (and (is-number-sets-of-type-p 4 'mentsu sets)
        (is-number-sets-of-type-p 1 'toitsu sets)
-       (is-number-sets-of-type-p 0 '(not (or standard-set toitsu)) sets)))
+       (is-number-sets-of-type-p 0 '(not (or mentsu toitsu)) sets)))
 
 (defmethod mahjong-hand-p :chiitoi (sets)
   (and (is-number-sets-of-type-p 7 'toitsu sets)

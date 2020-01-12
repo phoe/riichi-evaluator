@@ -199,7 +199,7 @@
              ,@body)
        '(,name))))
 
-(defgeneric compute-incompatible-yaku (yaku-list)
+(defgeneric compute-incompatible-yaku (yaku-list) ;; TODO
   (:method-combination chained-append))
 
 (defun compute-yaku (hand ordering)
@@ -330,8 +330,38 @@
                                       '(:haku :hatsu :chun)))))
   (make))
 
-;;; TODO: Sanshoku doujun
-;;; TODO: Sanshoku doukou
+;;; Sanshoku doujun
+
+(define-yaku :sanshoku-doujun (hand :sets sets)
+  (dolist (set sets)
+    (when (typep set 'shuntsu)
+      (let* ((tile (shuntsu-lowest-tile set))
+             (rank (rank tile))
+             (suit (suit tile)))
+        (flet ((doujun-set-p (set suit)
+                 (and (and (typep set 'shuntsu)
+                           (let ((tile (shuntsu-lowest-tile set)))
+                             (eq rank (rank tile))
+                             (eq suit (suit tile)))))))
+          (destructuring-bind (other-rank-1 other-rank-2) (remove suit *suits*)
+            (when (and (find-if (a:rcurry #'doujun-set-p other-rank-1) sets)
+                       (find-if (a:rcurry #'doujun-set-p other-rank-2) sets))
+              (return t))))))))
+
+;;; Sanshoku doukou
+
+(define-yaku :sanshoku-doukou (hand :sets sets)
+  (flet ((doukou-set-p (set suit)
+           (and (and (typep set '(or koutsu kantsu))
+                     (eq suit (suit (same-tile-set-tile set)))))))
+    (dolist (set sets)
+      (when (and (typep set '(or koutsu kantsu))
+                 (suited-p (same-tile-set-tile set)))
+        (let ((suit (suit (same-tile-set-tile set))))
+          (destructuring-bind (other-suit-1 other-suit-2) (remove suit *suits*)
+            (when (and (find-if (a:rcurry #'doukou-set-p other-suit-1) sets)
+                       (find-if (a:rcurry #'doukou-set-p other-suit-2) sets))
+              (return t))))))))
 
 ;;; Toitoihou
 
@@ -351,11 +381,65 @@
 
 ;;; TODO: Honchantaiyaochuu
 ;;; TODO: Junchantaiyaochuu
-;;; TODO: Ryanpeikou
-;;; TODO: Shousangen
-;;; TODO: Honroutou
-;;; TODO: Honiisou
-;;; TODO: Chiniisou
+
+;;; Ryanpeikou
+
+(define-yaku :ryanpeikou (hand :sets sets)
+  (and (typep hand 'closed-hand)
+       (dolist (set sets)
+         (and (typep set 'anjun) (= 2 (count set sets :test #'set=))
+              (let ((other-sets (remove set sets :test #'set= :count 2)))
+                (dolist (other-set other-sets)
+                  (when (and (typep other-set 'anjun)
+                             (= 2 (count other-set other-sets :test #'set=)))
+                    (return t))))
+              (return t)))))
+
+;;; Shousangen
+
+(define-yaku :shousangen (hand :sets sets)
+  (flet ((dragon-set-p (set)
+           (and (typep set 'same-tile-set)
+                (dragon-p (same-tile-set-tile set)))))
+    (and (= 1 (count-if (a:conjoin #'dragon-set-p
+                                   (a:rcurry #'typep 'toitsu))
+                        sets))
+         (= 2 (count-if (a:conjoin #'dragon-set-p
+                                   (a:rcurry #'typep '(or koutsu kantsu)))
+                        sets)))))
+
+;;; Honroutou
+
+(define-yaku :honroutou (hand)
+  (flet ((honroutou-tile-p (tile)
+           (or (terminal-p tile) (honor-p tile))))
+    (and (honroutou-tile-p (winning-tile hand))
+         (every #'honroutou-tile-p (free-tiles hand))
+         (every #'honroutou-tile-p
+                (a:mappend #'tiles (locked-sets hand))))))
+
+;;; Honiisou
+
+(define-yaku :honiisou (hand)
+  (dolist (suit *suits*)
+    (flet ((honiisou-tile-p (tile)
+             (or (eq (suit tile) suit) (eq (suit tile) :honor))))
+      (when (and (honiisou-tile-p (winning-tile hand))
+                 (every #'honiisou-tile-p (free-tiles hand))
+                 (every #'honiisou-tile-p
+                        (a:mappend #'tiles (locked-sets hand))))
+        (return t)))))
+
+;;; Chiniisou
+
+(define-yaku :chiniisou (hand)
+  (dolist (suit *suits*)
+    (flet ((chiniisou-tile-p (tile) (eq (suit tile) suit)))
+      (when (and (chiniisou-tile-p (winning-tile hand))
+                 (every #'chiniisou-tile-p (free-tiles hand))
+                 (every #'chiniisou-tile-p
+                        (a:mappend #'tiles (locked-sets hand))))
+        (return t)))))
 
 ;;; Chiitoitsu
 

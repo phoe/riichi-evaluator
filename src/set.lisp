@@ -47,7 +47,7 @@
    #:set #:tiles #:set= #:set-tile-count
    #:same-tile-set #:same-tile-set-tile
    #:closed-set #:open-set #:taken-from
-   #:standard-set
+   #:mentsu
    #:toitsu #:koutsu #:kantsu #:minkan #:shuntsu #:shuntsu-lowest-tile
    #:open-tile-set #:open-tile
    #:full-hand-set
@@ -222,17 +222,17 @@
            :datum taken-from
            :expected-type '#.`(member ,*other-players*))))
 
-(p:define-protocol-class standard-set (set) ())
+(p:define-protocol-class mentsu (set) ())
 
 (p:define-protocol-class toitsu (same-tile-set) ())
-(p:define-protocol-class koutsu (same-tile-set standard-set) ())
-(p:define-protocol-class kantsu (same-tile-set standard-set) ())
+(p:define-protocol-class koutsu (same-tile-set mentsu) ())
+(p:define-protocol-class kantsu (same-tile-set mentsu) ())
 
 (defmethod set-tile-count ((set toitsu)) (values 2 0))
 (defmethod set-tile-count ((set koutsu)) (values 3 0))
 (defmethod set-tile-count ((set kantsu)) (values 4 1))
 
-(p:define-protocol-class shuntsu (standard-set)
+(p:define-protocol-class shuntsu (mentsu)
   ((%lowest-tile :reader shuntsu-lowest-tile :initarg :lowest-tile))
   (:default-initargs
    :lowest-tile (a:required-argument :lowest-tile)))
