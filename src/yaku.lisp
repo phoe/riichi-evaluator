@@ -22,6 +22,7 @@
 
 (defpackage #:riichi-evaluator.yaku
   (:use #:cl
+        #:destructuring-bind-star
         #:riichi-evaluator.constants
         #:riichi-evaluator.tiles
         #:riichi-evaluator.set
@@ -171,15 +172,22 @@
              :dora-list (dora-list hand)
              :ura-dora-list (ura-dora-list hand)))))
 
-(defmacro define-situation (name (hand situation args) &body body)
+(defmacro define-situation
+    (name (hand situation &optional (args (gensym "ARGS")))
+     lambda-list &body body)
   (check-type name (or null keyword))
   `(defmethod validate-situation progn
        (,hand ,(if name `(,situation (eql ,name)) situation) &rest ,args)
-     ,@body))
+     (handler-case (destructuring-bind* ,lambda-list ,args ,@body)
+       (destructuring-error ()
+         (invalid-situation ,hand ,situation ,args
+                            "Situation ~A expected arguments in format ~
+                               ~S, but got ~S instead."
+                            (list ,situation ',lambda-list ',args))))))
 
-(define-situation nil (hand situation args)
+(define-situation nil (hand situation args) ()
   (when (null (compute-applicable-methods
-               #'validate-situation (list* hand situation args)))
+               #'validate-situation (list* hand situation)))
     (invalid-situation hand situation args "Unknown situation ~S." situation)))
 
 ;;; Yaku
@@ -209,40 +217,31 @@
 
 ;;; Riichi
 
-(define-situation :riichi (hand situation args)
+(define-situation :riichi (hand situation) ()
   (check-dora-ura-dora-list-length hand)
   (when (typep hand 'open-hand)
-    (invalid-situation hand situation args
-                       "Riichi cannot be declared on an open hand."))
-  (unless (null args)
-    (invalid-situation hand situation args
-                       "Riichi does not accept arguments.")))
+    (invalid-situation hand situation '()
+                       "Riichi cannot be declared on an open hand.")))
 
 (define-yaku :riichi (hand)
   (member :riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Double riichi
 
-(define-situation :double-riichi (hand situation args)
+(define-situation :double-riichi (hand situation) ()
   (unless (member :riichi (situations hand))
-    (invalid-situation hand situation args
-                       "Double riichi cannot occur without riichi."))
-  (unless (null args)
-    (invalid-situation hand situation args
-                       "Double riichi does not accept arguments.")))
+    (invalid-situation hand situation '()
+                       "Double riichi cannot occur without riichi.")))
 
 (define-yaku :double-riichi (hand)
   (member :double-riichi (situations hand) :key #'a:ensure-car))
 
 ;;; Ippatsu
 
-(define-situation :ippatsu (hand situation args)
+(define-situation :ippatsu (hand situation) ()
   (unless (member :riichi (situations hand))
-    (invalid-situation hand situation args
-                       "Ippatsu cannot occur without riichi."))
-  (unless (null args)
-    (invalid-situation hand situation args
-                       "Ippatsu does not accept arguments.")))
+    (invalid-situation hand situation '()
+                       "Ippatsu cannot occur without riichi.")))
 
 (define-yaku :ippatsu (hand)
   (member :ippatsu (situations hand) :key #'a:ensure-car))
@@ -261,7 +260,7 @@
 
 ;;; Pinfu
 
-(define-yaku :pinfu (hand ordering)
+(define-yaku :pinfu (hand :ordering ordering)
   (pinfu-p ordering (winning-tile hand)))
 
 ;;; Iipeikou
@@ -476,15 +475,12 @@
 
 ;;; Open riichi
 
-(define-situation :open-riichi (hand situation args)
+(define-situation :open-riichi (hand situation) ()
   (unless (member :riichi (situations hand))
-    (invalid-situation hand situation args
-                       "Open riichi cannot occur without riichi."))
-  (unless (null args)
-    (invalid-situation hand situation args
-                       "Open riichi does not accept arguments.")))
+    (invalid-situation hand situation '()
+                       "Open riichi cannot occur without riichi.")))
 
-(define-yaku :open-riichi (hand ordering)
+(define-yaku :open-riichi (hand :ordering ordering)
   (member :open-riichi (situations hand) :key #'a:ensure-car))
 
 ;;; TODO: Otakaze sankou

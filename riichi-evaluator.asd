@@ -32,7 +32,8 @@
                #:named-readtables
                #:protest/base
                #:closer-mop
-               #:moptilities)
+               #:moptilities
+               #:destructuring-bind-star)
   :components ((:file "constants")
                (:file "tiles")
                (:file "set")
