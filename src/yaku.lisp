@@ -202,7 +202,8 @@
   (check-type name keyword)
   `(defmethod compute-all-yaku ,name (,hand ,ordering)
      (declare (ignorable ,hand ,ordering))
-     (when (let ((,sets (cons (first ,ordering) (second ,ordering))))
+     (when (let ((,sets (when ordering
+                          (cons (first ,ordering) (second ,ordering)))))
              (declare (ignorable ,sets))
              ,@body)
        '(,name))))
@@ -261,7 +262,8 @@
 ;;; Pinfu
 
 (define-yaku :pinfu (hand :ordering ordering)
-  (pinfu-p ordering (winning-tile hand)))
+  (when ordering
+    (pinfu-p ordering (winning-tile hand))))
 
 ;;; Iipeikou
 
@@ -378,8 +380,28 @@
 (define-yaku :sankantsu (hand :sets sets)
   (and (= 3 (count-if (a:rcurry #'typep 'kantsu) sets))))
 
-;;; TODO: Honchantaiyaochuu
-;;; TODO: Junchantaiyaochuu
+;;; Honchantaiyaochuu
+
+(define-yaku :honchantaiyaochuu (hand :sets sets)
+  (loop for set in sets
+        always (or (and (typep set 'same-tile-set)
+                        (let ((tile (same-tile-set-tile set)))
+                          (or (honor-p tile)
+                              (member (rank tile) '(1 9)))))
+                   (and (typep set 'shuntsu)
+                        (let ((tile (shuntsu-lowest-tile set)))
+                          (member (rank tile) '(1 7)))))))
+
+;;; Junchantaiyaochuu
+
+(define-yaku :junchantaiyaochuu (hand :sets sets)
+  (loop for set in sets
+        always (or (and (typep set 'same-tile-set)
+                        (let ((tile (same-tile-set-tile set)))
+                          (member (rank tile) '(1 9))))
+                   (and (typep set 'shuntsu)
+                        (let ((tile (shuntsu-lowest-tile set)))
+                          (member (rank tile) '(1 7)))))))
 
 ;;; Ryanpeikou
 
