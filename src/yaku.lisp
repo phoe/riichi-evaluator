@@ -220,9 +220,9 @@
 
 (define-situation :riichi (hand situation) ()
   (check-dora-ura-dora-list-length hand)
-  (when (typep hand 'open-hand)
+  (unless (typep hand 'closed-hand)
     (invalid-situation hand situation '()
-                       "Riichi cannot be declared on an open hand.")))
+                       "Riichi must be scored on a closed hand.")))
 
 (define-yaku :riichi (hand)
   (member :riichi (situations hand) :key #'a:ensure-car))
