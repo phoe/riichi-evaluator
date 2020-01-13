@@ -386,8 +386,7 @@
   (loop for set in sets
         always (or (and (typep set 'same-tile-set)
                         (let ((tile (same-tile-set-tile set)))
-                          (or (honor-p tile)
-                              (member (rank tile) '(1 9)))))
+                          (or (honor-p tile) (terminal-p tile))))
                    (and (typep set 'shuntsu)
                         (let ((tile (shuntsu-lowest-tile set)))
                           (member (rank tile) '(1 7)))))))
@@ -398,7 +397,7 @@
   (loop for set in sets
         always (or (and (typep set 'same-tile-set)
                         (let ((tile (same-tile-set-tile set)))
-                          (member (rank tile) '(1 9))))
+                          (terminal-p tile)))
                    (and (typep set 'shuntsu)
                         (let ((tile (shuntsu-lowest-tile set)))
                           (member (rank tile) '(1 7)))))))
@@ -468,6 +467,15 @@
   (chiitoitsu-p ordering))
 
 ;;; TODO: Rinshan kaihou
+
+(define-situation :rinshan-kaihou (hand situation) ()
+  (when (typep hand 'ron-hand)
+    (invalid-situation hand situation '()
+                       "Rinshan kaihou must be scored via tsumo.")))
+
+(define-yaku :rinshan-kaihou (hand)
+  (member :rinshan-kaihou (situations hand) :key #'a:ensure-car))
+
 ;;; TODO: Haitei raoyue
 ;;; TODO: Houtei raoyui
 ;;; TODO: Chankan
