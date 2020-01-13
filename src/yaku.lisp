@@ -202,7 +202,7 @@
   (check-type name keyword)
   `(defmethod compute-all-yaku ,name (,hand ,ordering)
      (declare (ignorable ,hand ,ordering))
-     (when (let ((,sets (when ordering
+     (when (let ((,sets (when ,ordering
                           (cons (first ,ordering) (second ,ordering)))))
              (declare (ignorable ,sets))
              ,@body)
@@ -466,19 +466,46 @@
 (define-yaku :chiitoitsu (hand :ordering ordering)
   (chiitoitsu-p ordering))
 
-;;; TODO: Rinshan kaihou
+;;; Rinshan kaihou
 
 (define-situation :rinshan-kaihou (hand situation) ()
-  (when (typep hand 'ron-hand)
+  (unless (typep hand 'tsumo-hand)
     (invalid-situation hand situation '()
                        "Rinshan kaihou must be scored via tsumo.")))
 
 (define-yaku :rinshan-kaihou (hand)
   (member :rinshan-kaihou (situations hand) :key #'a:ensure-car))
 
-;;; TODO: Haitei raoyue
-;;; TODO: Houtei raoyui
-;;; TODO: Chankan
+;;; Haitei raoyue
+
+(define-situation :haitei-raoyue (hand situation) ()
+  (unless (typep hand 'tsumo-hand)
+    (invalid-situation hand situation '()
+                       "Haitei raoyue must be scored via tsumo.")))
+
+(define-yaku :haitei-raoyue (hand)
+  (member :haitei-raoyue (situations hand) :key #'a:ensure-car))
+
+;;; Houtei raoyui
+
+(define-situation :houtei-raoyui (hand situation) ()
+  (unless (typep hand 'ron-hand)
+    (invalid-situation hand situation '()
+                       "Houtei raoyui must be scored via ron.")))
+
+(define-yaku :houtei-raoyui (hand)
+  (member :houtei-raoyui (situations hand) :key #'a:ensure-car))
+
+;;; Chankan
+
+(define-situation :chankan (hand situation) ()
+  (unless (typep hand 'ron-hand)
+    (invalid-situation hand situation '()
+                       "Chankan must be scored via ron.")))
+
+(define-yaku :chankan (hand)
+  (member :chankan (situations hand) :key #'a:ensure-car))
+
 ;;; TODO: Kokushi musou
 ;;; TODO: Kokushi musou juusan menmachi
 ;;; TODO: Daisangen
