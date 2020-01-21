@@ -77,7 +77,7 @@
 
 (defun count-fu (hand ordering)
   (if (chiitoitsu-p ordering)
-      '((:chiitoitsu 25))
+      '((25 :chiitoitsu))
       (destructuring-bind (winning-set other-sets) ordering
         (let* ((fu '())
                (winning-tile (winning-tile hand))
@@ -113,19 +113,18 @@
                 (collect '(2 :jikaze-atama))))
             ;; Fu from difficult waits.
             (let ((wait (set-wait winning-set winning-tile)))
-              (case wait
-                (:shanpon (collect `(0 :shanpon ,winning-tile)))
-                (:ryanmen (collect `(0 :ryanmen ,winning-tile)))
-                (:kanchan (collect `(2 :kanchan ,winning-tile)))
-                (:penchan (collect `(2 :penchan ,winning-tile)))
-                (:tanki  (collect `(2 :tanki ,winning-tile)))))
+              (ecase wait
+                ((:ryanmen :shanpon)) ;; No wait fu for these.
+                (:kanchan (collect `(2 :kanchan-machi ,winning-tile)))
+                (:penchan (collect `(2 :penchan-machi ,winning-tile)))
+                (:tanki  (collect `(2 :tanki-machi ,winning-tile)))))
             ;; Fu from tsumo/open pinfu.
             (let ((pinfu-p (pinfu-p ordering winning-tile)))
               (when (and (not pinfu-p) (typep hand 'tsumo-hand))
                 (collect '(2 :tsumo)))
               (when (and pinfu-p (typep hand 'open-hand))
                 (collect '(2 :open-pinfu))))
-            fu)))))
+            (nreverse fu))))))
 
 ;;; Situations
 

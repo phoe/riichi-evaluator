@@ -150,7 +150,7 @@
   (:default-initargs
    :prevailing-wind :east :seat-wind :east
    :winning-tile (a:required-argument :winning-tile)
-   :locked-sets (a:required-argument :locked-sets)
+   :locked-sets '()
    :free-tiles (a:required-argument :free-tiles)
    :dora-list (a:required-argument :dora-list)
    :situations '()))
