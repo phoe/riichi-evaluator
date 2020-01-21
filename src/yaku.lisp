@@ -114,9 +114,11 @@
             ;; Fu from difficult waits.
             (let ((wait (set-wait winning-set winning-tile)))
               (case wait
-                (:kanchan (collect '(2 :kanchan)))
-                (:penchan (collect '(2 :penchan)))
-                (:tanki  (collect '(2 :tanki)))))
+                (:shanpon (collect `(0 :shanpon ,winning-tile)))
+                (:ryanmen (collect `(0 :ryanmen ,winning-tile)))
+                (:kanchan (collect `(2 :kanchan ,winning-tile)))
+                (:penchan (collect `(2 :penchan ,winning-tile)))
+                (:tanki  (collect `(2 :tanki ,winning-tile)))))
             ;; Fu from tsumo/open pinfu.
             (let ((pinfu-p (pinfu-p ordering winning-tile)))
               (when (and (not pinfu-p) (typep hand 'tsumo-hand))

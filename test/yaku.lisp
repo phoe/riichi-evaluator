@@ -1,4 +1,4 @@
-;;;; test/situations.lisp
+;;;; test/yaku.lisp
 ;;;;
 ;;;; Copyright 2012-2019 Kimmo "keko" Kenttälä and Michał "phoe" Herda.
 ;;;;
@@ -19,6 +19,16 @@
 ;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 ;;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ;;;; DEALINGS IN THE SOFTWARE.
+
+(in-package #:riichi-evaluator.test)
+
+(nr:in-readtable :riichi-evaluator)
+
+;;; Fu counting
+
+
+
+;;; Yaku counting
 
 (define-test riichi-ura-dora-length
   ;; TODO: we allow the ura dora list to be empty since at this point
