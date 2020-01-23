@@ -37,6 +37,7 @@
                (:file "tiles")
                (:file "set")
                (:file "hand")
+               (:file "yaku")
                )
   :perform
   (test-op (o c)
