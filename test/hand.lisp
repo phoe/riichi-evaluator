@@ -600,13 +600,17 @@
 
 (defun test-machi (hand-tiles winning-tiles)
   (do-all-tiles (tile)
-    (a:when-let ((hand (handler-case
-                           (make-test-hand
-                            :class 'rh:closed-tsumo-hand
-                            :free-tiles (rt:read-tile-list-from-string hand-tiles)
-                            :winning-tile tile
-                            :dora-list '([NW]))
-                         (rh:invalid-same-tile-count ()))))
+    (a:when-let
+        ((hand (handler-case
+                   (make-test-hand
+                    :class 'rh:closed-tsumo-hand
+                    :free-tiles (rt:read-tile-list-from-string hand-tiles)
+                    :winning-tile tile
+                    :dora-list '([NW]))
+                 (rh:invalid-same-tile-count (e)
+                   (true (rt:tile= tile (rh:invalid-same-tile-count-tile e)))
+                   (true (= 5 (rh:invalid-same-tile-count-count e)))
+                   nil))))
       (if (member tile winning-tiles :test #'rt:tile=)
           (true (rh:find-orderings hand))
           (false (rh:find-orderings hand))))))
