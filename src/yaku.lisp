@@ -558,3 +558,5 @@
 ;;; TODO: Ao no doumon
 ;;; TODO: Kaachou fuugetsu
 ;;; TODO: Fuuka setsugetsu
+
+;;; TODO: All the crazy stuff from http://arcturus.su/wiki/Local_yaku

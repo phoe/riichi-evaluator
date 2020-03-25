@@ -177,15 +177,16 @@
   (let* ((*readtable* (nr:find-readtable :riichi-evaluator))
          (tiles-1 (uiop:while-collecting (collect)
                     (do-all-suited-tiles (rank suit tile) (collect tile))
-                    (do-all-honor-tiles (kind tile) (collect tile))))
+                    (do-all-honor-tiles (kind tile)
+                      (collect tile) (collect tile))))
          (tiles-2 (funcall read-fn)))
-    (is = 34 (length tiles-2))
+    (is = 41 (length tiles-2))
     (loop for tile-1 in tiles-1
           for tile-2 in tiles-2
           do (is rt:tile= tile-1 tile-2))
     (let* ((string (funcall print-fn tiles-1))
            (tiles-3 (funcall re-read-fn string)))
-      (is = 34 (length tiles-3))
+      (is = 41 (length tiles-3))
       (loop for tile-1 in tiles-1
             for tile-3 in tiles-3
             do (is rt:tile= tile-1 tile-3)))))
@@ -194,7 +195,8 @@
   "([1m] [2m] [3m] [4m] [5m] [6m] [7m] [8m] [9m]
     [1p] [2p] [3p] [4p] [5p] [6p] [7p] [8p] [9p]
     [1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s] [9s]
-    [EW] [SW] [WW] [NW] [WD] [GD] [RD])")
+    [EW] [1z] [SW] [2z] [WW] [3z] [NW] [4z]
+    [WD] [5z] [GD] [6z] [RD] [7z])")
 
 (define-test tile-reader
   (tile-read-print-test
@@ -203,7 +205,7 @@
    (lambda (string) (read-from-string string))))
 
 (defparameter *tile-list-reader-data*
-  "123456789m123456789p123456789s1234567z")
+  "123456789m123456789p123456789s1234567z1234567z")
 
 (define-test tile-list-reader
   (tile-read-print-test
@@ -215,7 +217,8 @@
   '("1m" "2m" "3m" "4m" "5m" "6m" "7m" "8m" "9m"
     "1p" "2p" "3p" "4p" "5p" "6p" "7p" "8p" "9p"
     "1s" "2s" "3s" "4s" "5s" "6s" "7s" "8s" "9s"
-    "1z" "2z" "3z" "4z" "5z" "6z" "7z"))
+    "1z" "1z" "2z" "2z" "3z" "3z" "4z" "4z"
+    "5z" "5z" "6z" "6z" "7z" "7z"))
 
 (define-test make-tile
   (tile-read-print-test

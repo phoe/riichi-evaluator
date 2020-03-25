@@ -226,7 +226,7 @@
            (final-char (read-char stream t nil t)))
       (unless (find char-1 "123456789ESWNWGR" :test #'char-equal)
         (reader-error "Invalid first tile character ~@C." char-1))
-      (unless (find char-2 "MPSWD" :test #'char-equal)
+      (unless (find char-2 "MPSWDZ" :test #'char-equal)
         (reader-error "Invalid second tile character ~@C." char-2))
       (unless (eql #\] final-char)
         (reader-error "Expected a #\] but got ~@C instead." final-char))
@@ -248,6 +248,11 @@
          (let ((wind (a:rassoc-value *dragon-read-table* char-1
                                      :test #'char-equal)))
            (make-instance 'honor-tile :kind wind)))
+        ;; Numeric honor tile.
+        ((and (digit-char-p char-1) (<= 1 (digit-char-p char-1) 7)
+              (char-equal #\z char-2))
+         (let ((kind (nth (1- (digit-char-p char-1)) *honors*)))
+           (make-instance 'honor-tile :kind kind)))
         ;; Invalid tile.
         (t (reader-error "Attempted to read an unknown tile [~C~C]."
                          char-1 char-2))))))

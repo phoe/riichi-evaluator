@@ -615,8 +615,6 @@
           (true (rh:find-orderings hand))
           (false (rh:find-orderings hand))))))
 
-;; TODO tile reader macro should accept [1z] syntax.
-
 (define-test find-orderings-machi-ryanmen
   (test-machi "123456789m11z45s" '([3s] [6s])))
 
@@ -624,7 +622,7 @@
   (test-machi "123456789m11z12s" '([3s])))
 
 (define-test find-orderings-machi-shanpon
-  (test-machi "123456789m11z22z" '([EW] [SW])))
+  (test-machi "123456789m11z22z" '([1z] [2z])))
 
 (define-test find-orderings-machi-kanchan
   (test-machi "123456789m11z46s" '([5s])))
@@ -642,7 +640,7 @@
   (test-machi "123456m2345678s" '([2s] [5s] [8s])))
 
 (define-test find-orderings-machi-entotsu
-  (test-machi "123456m45666s11z" '([3s] [6s] [EW])))
+  (test-machi "123456m45666s11z" '([3s] [6s] [1z])))
 
 (define-test find-orderings-machi-aryanmen
   (test-machi "123456789m4566s" '([3s] [6s])))
@@ -668,7 +666,7 @@
 (define-test find-orderings-machi-complex-3-tile
   (test-machi "123456m1113456s"  '([2s] [3s] [6s]))
   (test-machi "123456m4455566s"  '([4s] [5s] [6s]))
-  (test-machi "123m22334455s11z" '([2s] [5s] [EW]))
+  (test-machi "123m22334455s11z" '([2s] [5s] [1z]))
   (test-machi "123456m1122223s"  '([1s] [3s] [4s]))
   (test-machi "123456m5567777s"  '([5s] [6s] [8s]))
   (test-machi "123456m3455777s"  '([2s] [5s] [6s]))
@@ -681,7 +679,7 @@
   (test-machi "34555m22334455s" '([2m] [5m] [2s] [5s]))
   (test-machi "123456m4445566s" '([4s] [5s] [6s] [7s]))
   (test-machi "123456m2223334s" '([2s] [3s] [4s] [5s]))
-  (test-machi "123m33345678s11z" '([3s] [6s] [9s] [EW]))
+  (test-machi "123m33345678s11z" '([3s] [6s] [9s] [1z]))
   (test-machi "123456m4555678s" '([3s] [4s] [6s] [9s]))
   (test-machi "123456m2233334s" '([1s] [2s] [4s] [5s]))
   (test-machi "123456m4566777s" '([3s] [5s] [6s] [8s])))
