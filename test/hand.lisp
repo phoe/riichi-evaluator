@@ -599,6 +599,8 @@
 ;;; Ordering tests - all machi from Arcturus
 
 (defun test-machi (hand-tiles winning-tiles)
+  (when (stringp winning-tiles)
+    (setf winning-tiles (rt:read-tile-list-from-string winning-tiles)))
   (do-all-tiles (tile)
     (a:when-let
         ((hand (handler-case
@@ -615,50 +617,25 @@
           (true (rh:find-orderings hand))
           (false (rh:find-orderings hand))))))
 
-(define-test find-orderings-machi-ryanmen
-  (test-machi "123456789m11z45s" '([3s] [6s])))
+(define-test find-orderings-machi-basic
+  (test-machi "123456789m11z45s" "36s") ; Ryanmen
+  (test-machi "123456789m11z12s" "3s")  ; Penchan
+  (test-machi "123456789m11z22z" "12z") ; Shanpon
+  (test-machi "123456789m11z46s" "5s")  ; Kanchan
+  (test-machi "123456789m111z4s" "4s")) ; Tanki
 
-(define-test find-orderings-machi-penchan
-  (test-machi "123456789m11z12s" '([3s])))
-
-(define-test find-orderings-machi-shanpon
-  (test-machi "123456789m11z22z" '([1z] [2z])))
-
-(define-test find-orderings-machi-kanchan
-  (test-machi "123456789m11z46s" '([5s])))
-
-(define-test find-orderings-machi-tanki
-  (test-machi "123456789m111z4s" '([4s])))
-
-(define-test find-orderings-machi-nobetan
-  (test-machi "123456789m3456s" '([3s] [6s])))
-
-(define-test find-orderings-machi-nobetan
-  (test-machi "123456m11z34567s" '([2s] [5s] [8s])))
-
-(define-test find-orderings-machi-sanmentan
-  (test-machi "123456m2345678s" '([2s] [5s] [8s])))
-
-(define-test find-orderings-machi-entotsu
-  (test-machi "123456m45666s11z" '([3s] [6s] [1z])))
-
-(define-test find-orderings-machi-aryanmen
-  (test-machi "123456789m4566s" '([3s] [6s])))
-
-(define-test find-orderings-machi-ryantan
-  (test-machi "123456789m5666s" '([4s] [5s] [7s])))
-
-(define-test find-orderings-machi-pentan
-  (test-machi "123456789m1222s" '([1s] [3s])))
-
-(define-test find-orderings-machi-kantan
-  (test-machi "123456789m1333s" '([1s] [2s])))
-
-(define-test find-orderings-machi-kantankan
-  (test-machi "123456m1113555s" '([2s] [3s] [4s])))
-
-(define-test find-orderings-machi-tatsumaki
-  (test-machi "123456m3334555s" '([2s] [3s] [4s] [5s] [6s])))
+(define-test find-orderings-machi-named
+  (test-machi "123456789m3456s"  "36s")        ; Nobetan
+  (test-machi "123456m11z34567s" "258s")       ; Sanmenchan
+  (test-machi "123456m2345678s"  "258s")       ; Sanmentan
+  (test-machi "123456m45666s11z" "36s1z")      ; Entotsu
+  (test-machi "123456789m4566s"  "36s")        ; Aryanmen
+  (test-machi "123456789m5666s"  "457s")       ; Ryantan
+  (test-machi "123456789m1222s"  "13s")        ; Pentan
+  (test-machi "123456789m1333s"  "12s")        ; Kantan
+  (test-machi "123456m1113555s"  "234s")       ; Kantankan
+  (test-machi "123456m3334555s"  "23456s")     ; Tatsumaki
+  (test-machi "123m2223456777s"  "12345678s")) ; Happoubijin
 
 (define-test find-orderings-machi-complex-2-tile
   (test-machi "123456m3567888s" '([3s] [4s])))
@@ -673,16 +650,16 @@
   (test-machi "123456m4556777s"  '([3s] [5s] [6s])))
 
 (define-test find-orderings-machi-complex-4-tile
-  (test-machi "123m2233445566s" '([2s] [3s] [5s] [6s]))
+  (test-machi "123m2233445566s"  '([2s] [3s] [5s] [6s]))
   (test-machi "123m34555s67888p" '([2s] [5s] [5p] [8p]))
-  (test-machi "123m2223456677s" '([5s] [6s] [7s] [8s]))
-  (test-machi "34555m22334455s" '([2m] [5m] [2s] [5s]))
-  (test-machi "123456m4445566s" '([4s] [5s] [6s] [7s]))
-  (test-machi "123456m2223334s" '([2s] [3s] [4s] [5s]))
+  (test-machi "123m2223456677s"  '([5s] [6s] [7s] [8s]))
+  (test-machi "34555m22334455s"  '([2m] [5m] [2s] [5s]))
+  (test-machi "123456m4445566s"  '([4s] [5s] [6s] [7s]))
+  (test-machi "123456m2223334s"  '([2s] [3s] [4s] [5s]))
   (test-machi "123m33345678s11z" '([3s] [6s] [9s] [1z]))
-  (test-machi "123456m4555678s" '([3s] [4s] [6s] [9s]))
-  (test-machi "123456m2233334s" '([1s] [2s] [4s] [5s]))
-  (test-machi "123456m4566777s" '([3s] [5s] [6s] [8s])))
+  (test-machi "123456m4555678s"  '([3s] [4s] [6s] [9s]))
+  (test-machi "123456m2233334s"  '([1s] [2s] [4s] [5s]))
+  (test-machi "123456m4566777s"  '([3s] [5s] [6s] [8s])))
 
 (define-test find-orderings-machi-complex-5-tile
   (test-machi "123m2345556677s" '([2s] [5s] [6s] [7s] [8s]))
@@ -698,12 +675,11 @@
   (test-machi "123m4445666678s" '([3s] [4s] [5s] [7s] [8s] [9s])))
 
 (define-test find-orderings-machi-complex-7-tile
-  (test-machi "2333345677778s"  '([1s] [2s] [4s] [5s] [6s] [8s] [9s]))
-  (test-machi "2344445666678s"  '([1s] [2s] [3s] [5s] [7s] [8s] [9s]))
-  (test-machi "2233445566777s"  '([1s] [2s] [3s] [4s] [5s] [6s] [7s]))
-  (test-machi "2344455566678s"  '([1s] [2s] [4s] [5s] [6s] [8s] [9s])))
+  (test-machi "2333345677778s" '([1s] [2s] [4s] [5s] [6s] [8s] [9s]))
+  (test-machi "2344445666678s" '([1s] [2s] [3s] [5s] [7s] [8s] [9s]))
+  (test-machi "2233445566777s" '([1s] [2s] [3s] [4s] [5s] [6s] [7s]))
+  (test-machi "2344455566678s" '([1s] [2s] [4s] [5s] [6s] [8s] [9s])))
 
 (define-test find-orderings-machi-complex-8-tile
   (test-machi "2333344567888s"  '([1s] [2s] [4s] [5s] [6s] [7s] [8s] [9s]))
-  (test-machi "2344445678999s"  '([1s] [2s] [3s] [5s] [6s] [7s] [8s] [9s]))
-  (test-machi "123m2223456777s" '([1s] [2s] [3s] [4s] [5s] [6s] [7s] [8s])))
+  (test-machi "2344445678999s"  '([1s] [2s] [3s] [5s] [6s] [7s] [8s] [9s])))
