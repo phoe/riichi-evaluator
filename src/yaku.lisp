@@ -408,7 +408,7 @@
 (define-yaku :ryanpeikou (hand :sets sets)
   (and (typep hand 'closed-hand)
        (dolist (set sets)
-         (and (typep set 'anjun) (= 2 (count set sets :test #'set=))
+         (and (typep set 'anjun) (<= 2 (count set sets :test #'set=))
               (let ((other-sets (remove set sets :test #'set= :count 2)))
                 (dolist (other-set other-sets)
                   (when (and (typep other-set 'anjun)

@@ -486,9 +486,9 @@
 
 (defmethod print-set-using-class ((set shouminkan) stream)
   (apply #'print-tile-list (tiles set) stream (case (taken-from set)
-                                                (:kamicha '((0) (1)))
-                                                (:toimen '((1) (2)))
-                                                (:shimocha '((2) (3))))))
+                                                (:kamicha '(0 1))
+                                                (:toimen '(1 2))
+                                                (:shimocha '(2 3)))))
 
 (defmethod print-set-using-class ((set minjun) stream)
   (let* ((open-tile (open-tile set))
